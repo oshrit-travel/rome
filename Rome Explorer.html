@@ -1,0 +1,992 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#F3F6F9">
+<title>Rome Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+/* Identity: night cartography. Flat ink panels, hairline rules, Frank Ruhl serif for names,
+   a metro-line motif (stations on a mint line) for every sequence: loading, route, plan. */
+.maplibregl-map{font:12px/20px Helvetica,Arial,sans-serif;overflow:hidden;position:relative;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.maplibregl-canvas{position:absolute;left:0;top:0}
+.maplibregl-canvas-container.maplibregl-interactive{cursor:grab;user-select:none}
+.maplibregl-canvas-container.maplibregl-touch-zoom-rotate,.maplibregl-canvas-container.maplibregl-touch-zoom-rotate .maplibregl-canvas{touch-action:pan-x pan-y}
+.maplibregl-canvas-container.maplibregl-touch-drag-pan,.maplibregl-canvas-container.maplibregl-touch-drag-pan .maplibregl-canvas{touch-action:pinch-zoom}
+.maplibregl-canvas-container.maplibregl-touch-zoom-rotate.maplibregl-touch-drag-pan,.maplibregl-canvas-container.maplibregl-touch-zoom-rotate.maplibregl-touch-drag-pan .maplibregl-canvas{touch-action:none}
+.maplibregl-ctrl-bottom-right{position:absolute;pointer-events:none;z-index:2;bottom:0;right:0}
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl{float:right;margin:0 0 0 10px}
+.maplibregl-ctrl{clear:both;pointer-events:auto;transform:translate(0)}
+.maplibregl-ctrl-attrib{padding:0 6px;font-size:11px}.maplibregl-ctrl-attrib a{text-decoration:none}
+.maplibregl-marker{position:absolute;top:0;left:0;will-change:transform}
+:root{--ink:#F3F6F9;--panel:#FFFFFF;--panel2:#E9EFF5;--rule:#D3DDE8;--paper:#0F1B2A;--mute:#566A82;--gold:#A96A00;--mint:#0A8A6E;--bad:#C93A2A;--glass:rgba(255,255,255,.95);--body:#2B3B50;--onmint:#fff;--ongold:#fff;--phbg:hsl(var(--h) 60% 90%);--phfg:hsl(var(--h) 55% 32%);--toastbtn:#5EE7C4;color-scheme:light;
+ --serif:'Frank Ruhl Libre','Times New Roman',serif;--sans:'Heebo',system-ui,sans-serif;--r:3px;--sh:0px;--safeB:env(safe-area-inset-bottom,0px);--safeT:env(safe-area-inset-top,0px)}
+:root[data-theme=dark]{--ink:#0D1620;--panel:#121D2A;--panel2:#192A3E;--rule:#25374B;--paper:#EDEFF3;--mute:#8FA3BA;--gold:#F1C777;--mint:#5EE7C4;--bad:#FF8F80;--glass:rgba(13,22,32,.94);--body:#d5dce6;--onmint:#04241c;--ongold:#1a1405;--phbg:hsl(var(--h) 28% 20%);--phfg:hsl(var(--h) 60% 75%);--toastbtn:#0a6a56;color-scheme:dark}
+#intro{--ink:#0D1620;--panel:#121D2A;--rule:#25374B;--paper:#EDEFF3;--mute:#8FA3BA;--gold:#F1C777;--mint:#5EE7C4;--onmint:#04241c;color:#EDEFF3}
+.dh h2,.dh .alt,.dh .back{color:#fff}.btn.danger{color:#fff}.pin.k{background:#59A8FF;box-shadow:0 0 0 1.5px #59A8FF,0 4px 12px rgba(0,0,0,.45)}.pin.h{background:#FF6FA8;box-shadow:0 0 0 1.5px #FF6FA8,0 4px 12px rgba(0,0,0,.45)}.pin.h.sel{background:var(--paper)}.pin.h.dest{background:var(--mint)}
+.pin.k.sel{background:var(--paper)}.pin.k.dest{background:var(--mint)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--ink);color:var(--paper);font-family:var(--sans);font-size:16px;overflow:hidden;overscroll-behavior:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#map{position:fixed;inset:0}
+.maplibregl-ctrl-bottom-right{bottom:calc(var(--sh) + 2px)}
+.maplibregl-ctrl-attrib{background:var(--glass)!important;color:var(--mute)!important}.maplibregl-ctrl-attrib a{color:var(--mute)!important}
+.lc,svg.lucide{width:1.15em;height:1.15em;vertical-align:-.2em;stroke:currentColor;fill:none;flex:none}
+/* top bar */
+#top{position:fixed;z-index:20;inset-inline:0;top:0;padding-top:var(--safeT);background:var(--glass);border-bottom:1px solid var(--rule)}
+.search{display:flex;align-items:center;gap:10px;height:48px;padding-inline:16px;border-bottom:1px solid var(--rule)}
+.search svg{width:20px;height:20px;stroke:var(--gold)}
+.search input{flex:1;min-width:0;background:none;border:0;color:var(--paper);font:500 17px var(--sans);height:100%;outline:none}
+.search input::placeholder{color:var(--mute)}
+#qx{width:32px;height:32px;display:grid;place-items:center;color:var(--mute)}#qx svg{width:18px;height:18px}
+#chips{display:flex;gap:22px;overflow-x:auto;padding:0 16px;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:11px 0 9px;font-size:14px;font-weight:500;color:var(--mute);white-space:nowrap;border-bottom:2px solid transparent}
+.chip[aria-pressed=true]{color:var(--paper);border-bottom-color:var(--gold)}
+/* fabs */
+#fabs{position:fixed;z-index:25;inset-inline-end:12px;bottom:calc(var(--sh) + 14px);display:flex;flex-direction:column;gap:8px;transition:bottom .35s,opacity .2s}
+body[data-snap=full] #fabs{opacity:0;pointer-events:none}
+.fab{width:46px;height:46px;background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.fab svg{width:21px;height:21px;stroke:var(--paper);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fab:active,.btn:active{scale:.97}
+/* sheet */
+#sheet{position:fixed;z-index:30;inset-inline:0;bottom:0;height:50vh;background:var(--panel);border-top:1px solid var(--rule);display:flex;flex-direction:column;transition:height .35s cubic-bezier(.2,.8,.2,1);padding-bottom:var(--safeB);box-shadow:0 -14px 40px rgba(0,0,0,.45)}
+#handle{height:20px;width:100%;display:grid;place-items:center;flex:none}#handle i{width:38px;height:3px;background:var(--rule);display:block}
+#tabs{display:flex;border-bottom:1px solid var(--rule);flex:none}
+.tab{flex:1;padding:8px 4px 9px;font-size:12.5px;font-weight:500;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:4px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab svg{width:20px;height:20px}
+.tab[aria-selected=true]{color:var(--gold);border-bottom-color:var(--gold)}
+#view{flex:1;overflow-y:auto;padding:0 16px 32px;-webkit-overflow-scrolling:touch}
+/* type */
+h2{font:700 30px/1.1 var(--serif);margin:18px 0 14px;text-wrap:balance}
+h3{display:flex;align-items:center;gap:8px;margin:28px 0 10px;padding-top:12px;border-top:1px solid var(--rule);font:600 13.5px/1 var(--sans);color:var(--mute)}
+p{line-height:1.65;margin:0 0 12px;color:var(--body)}
+p.lead{font:400 18.5px/1.75 var(--serif);color:var(--paper)}
+/* list rows */
+.it{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--rule)}
+.im{flex:1;display:flex;gap:14px;align-items:center;text-align:start;min-width:0;padding:14px 0}
+.th{width:62px;height:62px;flex:none;object-fit:cover;background:var(--panel2);border-radius:2px;display:block}
+.th.ph{display:grid;place-items:center;background:var(--phbg);color:var(--phfg)}.th.ph svg{width:26px;height:26px}
+.tx2{display:block;min-width:0}
+.nm{display:block;font:700 21px/1.15 var(--serif)}
+.sb{display:block;color:var(--mute);font-size:13px;margin-top:3px;line-height:1.4}
+.ds{font-variant-numeric:tabular-nums;color:var(--gold);font-weight:600}
+.fv{width:42px;height:48px;display:grid;place-items:center;color:var(--mute);flex:none}.fv svg{width:22px;height:22px}
+.fv[aria-pressed=true] svg,.btn[aria-pressed=true] svg{fill:#ff7b8f;stroke:#ff7b8f}
+.empty{text-align:center;color:var(--mute);padding:48px 12px;line-height:1.6}
+.spin{width:30px;height:30px;border-radius:50%;border:3px solid var(--rule);border-top-color:var(--mint);margin:0 auto;animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:50px;padding:0 20px;border-radius:var(--r);font-weight:700;font-size:16px;border:1px solid var(--rule);color:var(--paper)}
+.btn svg{width:19px;height:19px}
+.btn.pri{background:var(--mint);color:var(--onmint);border-color:var(--mint)}
+.btn.gold{border-color:var(--gold);color:var(--gold)}
+.btn.danger{background:#7a2433;border-color:#7a2433}
+.btn.full{width:100%}.btn.sm{min-height:42px;padding:0 14px;font-size:14.5px}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.row>.btn{flex:1}
+.row2{display:flex;gap:8px;margin:2px 0 16px}.row2 .btn{flex:1;min-height:44px;font-size:15px}
+.acts{display:flex;justify-content:space-between;margin:6px 0 0;border-bottom:1px solid var(--rule)}
+.acts button,.acts a{flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;font-size:14.5px;text-decoration:none}
+.acts svg{width:19px;height:19px}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--mute);font-weight:500;min-height:44px}
+[dir=rtl] .back svg{transform:scaleX(-1)}
+/* detail */
+.dh{position:relative;margin:0 -16px;height:250px;background:linear-gradient(160deg,hsl(var(--h) 35% 30%),hsl(var(--h) 40% 16%));display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.dh .himg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dh::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,22,32,.45),rgba(13,22,32,0) 38%,rgba(13,22,32,.95));pointer-events:none}
+.dh .ghost{position:absolute;inset-inline-end:-6px;top:34px;color:#fff;opacity:.08}.dh .ghost svg{width:180px;height:180px;stroke-width:1}
+.dh .back{position:absolute;z-index:2;top:10px;inset-inline-start:10px;background:rgba(13,22,32,.72);padding:0 14px 0 10px;border-radius:var(--r);min-height:40px}
+.dh .dt{position:relative;z-index:2;padding:0 16px 14px}
+.dh h2{margin:0;font-size:34px}
+.dh .alt{color:#cfd8e4;font-size:14px;margin-top:6px}
+.dh .cr{position:absolute;z-index:2;top:14px;inset-inline-end:12px;font-size:11px;color:#dfe6ee;display:none}.dh.hasimg .cr{display:block}
+.dpad{padding-top:16px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:10px 22px;margin:14px 0 4px;font-size:15px}
+.facts dt{color:var(--mute)}.facts dd{margin:0;font-variant-numeric:tabular-nums}
+ul.f{padding-inline-start:20px;margin:0 0 8px;line-height:1.75;color:var(--body)}
+.note{border-inline-start:3px solid var(--gold);padding:10px 14px;background:var(--panel2);font-size:13.5px;color:var(--body);margin:18px 0;line-height:1.6}
+/* summary + metro line */
+.kv{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;color:var(--mute);align-items:center}
+.badge{display:inline-flex;gap:7px;align-items:center;color:var(--mint);font-weight:600}.badge::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}.badge.w{color:var(--gold)}
+.sum{display:flex;gap:34px;margin:16px 0 6px}
+.sum b{display:block;font:700 46px/1 var(--serif);font-variant-numeric:tabular-nums}.sum small{color:var(--mute);font-size:13px}
+.mline{margin:12px 0 4px}
+.stn{position:relative;padding-inline-start:38px;padding-bottom:20px;min-height:44px}
+.stn::before{content:'';position:absolute;inset-inline-start:11px;top:16px;bottom:-4px;width:4px;background:var(--mint);border-radius:2px}
+.stn:last-child{padding-bottom:4px}.stn:last-child::before{display:none}
+.stn::after{content:'';position:absolute;inset-inline-start:5px;top:6px;width:16px;height:16px;border-radius:50%;background:var(--ink);border:4px solid var(--mint)}
+.stn.end::after{border-color:var(--gold)}
+.stn .nm2{font:700 20px/1.2 var(--serif);padding-top:2px;padding-inline-end:140px}
+.stn .lg{display:flex;align-items:center;gap:7px;color:var(--mute);font-size:13.5px;margin-top:8px;font-variant-numeric:tabular-nums}.stn .lg svg{width:15px;height:15px}
+.stn .sub{color:var(--mute);font-size:13px;margin-top:3px}
+.stn .ctl{position:absolute;inset-inline-end:0;top:-2px;display:flex;gap:6px}
+.mini{width:38px;height:38px;display:grid;place-items:center;color:var(--paper);border:1px solid var(--rule);border-radius:var(--r)}.mini svg{width:17px;height:17px}.mini[disabled]{opacity:.3}
+.stn select{margin-top:8px}
+.step{display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule);width:100%;text-align:start}
+.step .ar{width:38px;height:38px;border:1px solid var(--rule);display:grid;place-items:center;flex:none;border-radius:var(--r)}
+.step svg{width:21px;height:21px;fill:var(--paper)}
+.step b{display:block;font-size:15.5px;font-weight:500;line-height:1.35}.step small{color:var(--mute);font-variant-numeric:tabular-nums}
+/* forms + settings */
+select,input.txt{width:100%;min-height:48px;background:var(--panel2);color:var(--paper);border:1px solid var(--rule);border-radius:var(--r);padding:0 12px;font:inherit;font-size:16px}
+.set{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.seg{display:flex}.seg button{padding:9px 15px;border:1px solid var(--rule);margin-inline-start:-1px;font-weight:600;color:var(--mute);font-size:14.5px}
+.seg button[aria-pressed=true]{background:var(--gold);border-color:var(--gold);color:var(--ongold)}
+.chk{display:flex;gap:10px;padding:9px 0;font-size:14.5px;line-height:1.5}.chk i{font-style:normal;flex:none;width:22px}
+/* map markers */
+
+.pw{width:30px;height:40px;position:relative}
+.pin{position:absolute;inset:0;border:0;background:none;box-shadow:none;border-radius:0;color:#EA4335;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));transform-origin:50% 100%;transition:transform .25s cubic-bezier(.2,.9,.3,1.3)}
+.pin svg{display:block;width:30px;height:40px;pointer-events:none}
+.pin::after{content:'';position:absolute;inset:-8px}
+.pin.k,.pin.h,.pin.t{background:none;box-shadow:none}.pin.t{color:#00796B}.pin.t.sel{color:#004D40;background:none;transform:scale(1.3);z-index:5}.pin.t.dest{color:#188038;background:none}.pin.k{color:#1A73E8}.pin.h{color:#C2185B}
+.pin.sel,.pin.k.sel,.pin.h.sel{transform:scale(1.3);background:none;z-index:5}.pin.sel{color:#B31412}.pin.k.sel{color:#0B57D0}.pin.h.sel{color:#880E4F}
+.pin.dest,.pin.k.dest,.pin.h.dest{color:#188038;background:none;box-shadow:none}
+.pin.in{animation:pop .5s cubic-bezier(.2,.9,.3,1.3) backwards;animation-delay:var(--d,0ms)}
+@keyframes pop{from{transform:scale(0);opacity:0}}
+.pl{position:absolute;top:42px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 12px var(--sans);color:var(--paper);text-shadow:0 0 3px var(--ink),0 0 3px var(--ink),0 0 5px var(--ink),0 0 7px var(--ink);display:none;pointer-events:none}
+.z-lbl .pl{display:block}
+.mk{width:30px;height:30px;border-radius:50%;background:var(--mint);color:var(--onmint);font-weight:800;display:grid;place-items:center;border:3px solid var(--ink)}
+.me{width:22px;height:22px;border-radius:50%;background:#4aa3ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(74,163,255,.25);position:relative}
+.me .cone{position:absolute;left:50%;top:50%;width:0;height:0;margin:-34px 0 0 -12px;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:26px solid rgba(74,163,255,.5);transform-origin:12px 34px;display:none}
+.me.h .cone{display:block}.me.sim{background:#c084fc;box-shadow:0 0 0 6px rgba(192,132,252,.3)}
+/* navigation */
+#hud[hidden],#navbar[hidden],#sug[hidden],#modal[hidden]{display:none}
+#hud{position:fixed;z-index:35;inset-inline:0;top:0;padding-top:var(--safeT);background:var(--ink);border-bottom:1px solid var(--rule);display:flex;align-items:stretch;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#hud .big{width:88px;flex:none;background:var(--mint);display:grid;place-items:center}
+#hud .big svg{width:50px;height:50px;fill:var(--onmint)}
+#hud .tt{padding:12px 16px;min-width:0}
+#hud .d{font:700 48px/1 var(--serif);font-variant-numeric:tabular-nums}
+#hud .tx{font-size:19px;font-weight:600;margin-top:5px;line-height:1.25}
+#hud .nx{font-size:13.5px;color:var(--mute);margin-top:5px}
+#banner{position:fixed;z-index:34;inset-inline:0;top:var(--bt,calc(88px + var(--safeT)));display:flex;flex-direction:column;pointer-events:none}
+#banner div{pointer-events:auto;background:var(--panel2);border-inline-start:4px solid var(--gold);color:var(--paper);padding:10px 16px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--rule)}
+#banner .err{border-inline-start-color:var(--bad)}#banner .demo{border-inline-start-color:#c084fc}
+#banner button{border:1px solid var(--rule);padding:4px 12px;border-radius:var(--r)}
+#navbar{position:fixed;z-index:35;inset-inline:0;bottom:0;background:var(--ink);border-top:1px solid var(--rule);padding:0 16px calc(12px + var(--safeB));box-shadow:0 -10px 34px rgba(0,0,0,.5)}
+.prog{height:4px;background:var(--rule);margin:0 -16px 12px;position:relative}.prog i{position:absolute;inset-block:0;inset-inline-start:0;background:var(--mint);width:0;transition:width .6s}
+.nrow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.nrow b{display:block;font:700 34px/1 var(--serif);font-variant-numeric:tabular-nums}.nrow small{display:block;color:var(--mute);font-size:13px;margin-top:4px}
+.nrow .r{text-align:end}
+.pills{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--mute);margin:10px 0}.pills .ok{color:var(--mint)}.pills .mid{color:var(--gold)}.pills .bad{color:var(--bad)}
+.nbtn{display:flex;gap:8px}.nbtn .btn{flex:1;min-height:46px;padding:0 10px;font-size:15px}
+#sug{position:fixed;z-index:34;inset-inline:0;bottom:calc(var(--nbh,150px) + var(--safeB));background:var(--panel);border-top:3px solid var(--gold);padding:12px 16px}
+#sug .it{border:0}
+#toast{position:fixed;z-index:80;inset-inline:16px;bottom:calc(var(--sh) + 78px);display:flex;justify-content:center;pointer-events:none}
+#toast div{background:var(--paper);color:var(--ink);padding:12px 16px;border-radius:var(--r);font-weight:600;font-size:14.5px;box-shadow:0 10px 30px rgba(0,0,0,.5);pointer-events:auto;display:flex;gap:14px;align-items:center;max-width:540px}
+#toast button{color:var(--toastbtn);font-weight:800}
+#modal{position:fixed;z-index:90;inset:0;background:rgba(5,9,15,.75);display:grid;place-items:center;padding:16px}
+#modal .box{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);padding:6px 18px 18px;width:100%;max-width:460px;max-height:86vh;overflow:auto}
+/* intro */
+#intro{position:fixed;z-index:100;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:calc(18px + var(--safeT)) 22px calc(26px + var(--safeB));background:linear-gradient(180deg,rgba(13,22,32,.8) 0%,rgba(13,22,32,.05) 32%,rgba(13,22,32,.1) 50%,rgba(13,22,32,.94) 84%);transition:opacity .9s}
+#intro.bg{background:radial-gradient(130% 90% at 15% 0%,#1d3047,#0d1620 70%)}
+#intro.out{opacity:0;pointer-events:none}
+.in-top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mute);direction:ltr}
+.skip{color:var(--paper);text-decoration:underline;text-underline-offset:4px;min-height:40px;font-size:14px}
+.in-main h1{font:900 clamp(60px,20vw,176px)/.92 var(--serif);margin:0 0 14px;letter-spacing:-.02em}
+.in-main h1 .ln{display:inline-block;overflow:hidden;direction:ltr;padding-bottom:.12em}
+.in-main h1 .ch{display:inline-block}
+.in-main .sub{font:500 22px/1.35 var(--serif);color:var(--gold);margin-bottom:10px}
+.in-main p{max-width:480px;font-size:16.5px;color:#cdd6e2}
+.track{position:relative;height:4px;background:var(--rule);margin:26px 0 20px;max-width:520px}
+.track i{position:absolute;inset-block:0;inset-inline-start:0;width:6%;background:var(--mint);transition:width .5s}
+.track b{position:absolute;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;background:var(--ink);border:4px solid var(--rule);transition:border-color .3s}
+.track b.on{border-color:var(--mint)}
+.track b:nth-of-type(1){inset-inline-start:0}.track b:nth-of-type(2){inset-inline-start:calc(50% - 8px)}.track b:nth-of-type(3){inset-inline-end:0}
+.in-bot .st{font-size:13px;color:var(--mute);margin-bottom:14px}
+.in-bot .btn{min-width:220px}
+body.nav #top,body.nav #sheet{display:none}
+body.nav #fabs{bottom:calc(var(--nbh,150px) + 16px)}
+@media(min-width:900px){
+ #sheet{inset-inline:auto;inset-inline-start:0;top:0;bottom:0;width:430px;height:auto!important;border-top:0;border-inline-end:1px solid var(--rule)}
+ #handle{display:none}
+ #top{inset-inline:auto;inset-inline-start:430px;width:min(620px,calc(100% - 450px));background:transparent;border:0;padding:12px 12px 0}
+ #top .search{background:var(--panel);border:1px solid var(--rule)}
+ #chips{background:var(--panel);margin-top:8px;border:1px solid var(--rule)}
+ #banner{inset-inline-start:430px;top:100px}
+ .maplibregl-ctrl-bottom-right{bottom:0}#fabs{bottom:28px}#toast{bottom:30px;inset-inline-start:430px}
+ body.nav #hud,body.nav #navbar,body.nav #sug{max-width:640px;inset-inline-end:auto}
+ body.nav #banner{inset-inline-start:0;max-width:640px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- Google-Maps-like skin ---- */
+:root{--r:12px;--serif:var(--sans);--ink:#F1F3F4;--panel:#FFFFFF;--panel2:#F1F3F4;--rule:#E3E6E8;--paper:#202124;--mute:#5F6368;--gold:#E37400;--mint:#1A73E8;--bad:#D93025;--glass:#FFFFFF;--body:#3C4043;--onmint:#fff;--ongold:#fff;--toastbtn:#8AB4F8}
+:root[data-theme=dark]{--ink:#202124;--panel:#292A2D;--panel2:#35363A;--rule:#3C4043;--paper:#E8EAED;--mute:#9AA0A6;--gold:#FDD663;--mint:#8AB4F8;--bad:#F28B82;--glass:#292A2D;--body:#BDC1C6;--onmint:#0B2A5B;--ongold:#3A2A00;--toastbtn:#1A73E8}
+#top{background:none;border:0;padding:calc(10px + var(--safeT)) 12px 0;pointer-events:none}
+#top .search,#chips{pointer-events:auto}
+#top .search{height:48px;background:var(--panel);border:0;border-radius:24px;box-shadow:0 2px 8px rgba(0,0,0,.3);padding-inline:18px}
+#chips{background:none;border:0;margin:0;padding:10px 0 4px;gap:8px}
+.chip{background:var(--panel);border:1px solid var(--rule);border-radius:18px;padding:7px 14px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.2);border-bottom:1px solid var(--rule)}
+.chip[aria-pressed=true]{background:var(--mint);color:var(--onmint);border-color:var(--mint)}
+#sheet{border:0;border-radius:20px 20px 0 0;box-shadow:0 -2px 16px rgba(0,0,0,.28)}
+#handle i{height:4px;width:36px;border-radius:2px}
+.tab[aria-selected=true]{color:var(--mint);border-bottom-color:var(--mint)}
+.btn{border-radius:22px;font-weight:600}.btn.gold{border-color:var(--rule);color:var(--mint)}
+.fab{border-radius:50%;border:0;box-shadow:0 2px 8px rgba(0,0,0,.3);width:44px;height:44px}
+#bNorth{display:none}
+h2{font:700 24px/1.25 var(--sans);margin:16px 0 12px}
+.nm{font:600 16.5px/1.3 var(--sans)}.nm2,.stn .nm2{font:600 17px/1.3 var(--sans)}
+p.lead{font:400 16px/1.7 var(--sans)}
+.dh h2{font:700 26px/1.2 var(--sans)}
+.th{border-radius:10px}.note{border-radius:10px}
+.sum b{font:600 34px/1 var(--sans)}#hud .d{font:600 44px/1 var(--sans)}.nrow b{font:600 28px/1 var(--sans)}
+#hud{border-radius:0 0 16px 16px;border:0}#navbar{border-radius:20px 20px 0 0;border:0}#sug{border-radius:16px 16px 0 0}
+.ds{color:var(--gold)}
+.in-main h1{font-family:var(--sans);font-weight:800}.in-main .sub{font-family:var(--sans)}
+@media(min-width:900px){#sheet{border-radius:0}#top{padding-top:12px}}
+</style>
+</head>
+<body data-snap="half">
+<div id="map" role="application" aria-label="Rome map"></div>
+
+<header id="top">
+  <label class="search"><i data-lucide="search" data-fb="⌕"></i>
+    <input id="q" type="search" autocomplete="off" data-ph="ph" data-al="ph"><button id="qx" type="button" hidden data-al="clear"><i data-lucide="x" data-fb="✕"></i></button></label>
+  <div id="chips" role="group"></div>
+</header>
+
+<div id="hud" hidden></div>
+<div id="banner"></div>
+
+<div id="fabs">
+  <button class="fab" id="bAir" data-act="air" data-al="airBtn"><i data-lucide="plane" data-fb="✈"></i></button>
+  <button class="fab" id="bHotel" data-act="hotel" data-al="hotelBtn"><i data-lucide="bed-double" data-fb="⌂"></i></button>
+  <button class="fab" id="bTheme" data-act="themeFab" data-al="themeBtn"></button>
+  <button class="fab" id="bCred" data-act="credits" data-al="credits"><i data-lucide="info" data-fb="i"></i></button>
+  <button class="fab" id="bNorth" data-act="north" data-al="resetNorth"><svg viewBox="0 0 24 24" id="compass"><path d="M12 3l4 9H8z" fill="currentColor"/><path d="M12 21l-4-9h8z"/></svg></button>
+  <button class="fab" id="bLoc" data-act="locate" data-al="locate"><i data-lucide="locate-fixed" data-fb="⌖"></i></button>
+</div>
+
+<section id="sheet" aria-label="panel">
+  <button id="handle" data-act="snap" data-al="expand"><i></i></button>
+  <nav id="tabs" role="tablist"></nav>
+  <div id="view"></div>
+</section>
+
+<div id="sug" hidden></div>
+<div id="navbar" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="modal" hidden></div>
+
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script>
+'use strict';
+/* ============================ helpers ============================ */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store={get(k,d){try{const v=localStorage.getItem('rome.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('rome.'+k,JSON.stringify(v));return true}catch(e){toast(t('storageFail'));return false}}};
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const dur=ms=>RM?0:ms;
+const R=6371008.8,rad=Math.PI/180;
+const BP=[12.4823,41.8967];
+const CFG={offRoute:35,offSamples:3,arrive:28,discoverRadius:350,discoverGapMs:180000,walkSpeed:1.25};
+
+/* ============================ i18n ============================ */
+const T={he:{
+ ph:'חיפוש אתרים ברומא…',clear:'נקה',resetNorth:'אפס כיוון צפון',tilt:'שנה זווית',locate:'המיקום שלי',credits:'קרדיטים',expand:'הרחב/כווץ פאנל',
+ introP:'חקרו את רומא כמו עולם פתוח — מפה אמיתית בתלת-ממד, מסלולי הליכה אמיתיים וגילוי אתרים בדרך.',enter:'צאו לטיול',skip:'דלג על ההקדמה',
+ introSub:'',c_kosher:'כשר',hotelAir:'מהמלון לתחנת טרמיני',c_transit:'שדה תעופה',exNote:'המיקום סומן ידנית ב-Google Maps (47.496944, 19.055709). שם הרחוב המדויק — לפי השילוט במקום.',airBtn:'מהשדה לעיר',tNote:'מיקום התחנה משוער לפי תחנת המטרו הסמוכה. את תחנת האוטובוס המדויקת תמצאו לפי השילוט במקום או באתר BKK.',c_hotel:'מלון',hotelBtn:'המלון שלי',hNote:'המיקום משוער לפי הכתובת עד שיאומת. לדיוק מלא השתמשו בכפתור Google Maps.',locApprox:'המיקום על המפה משוער עד שיאומת לפי הכתובת. לדיוק מלא השתמשו בכפתור Google Maps.',theme:'מצב תצוגה',light:'בהיר',dark:'כהה',auto:'אוטומטי',themeBtn:'החלף בין בהיר לכהה',kHeck:'כשרות',kType:'סוג',kDairy:'חלבי',kMeat:'בשרי',addr:'כתובת',kNote:'הכשרות והשעות לא אומתו כאן — ודאו מול המקום לפני הגעה (הטלפון בפרטים).',gmaps:'פתח ב-Google Maps',ld0:'טוען מפה ותלת-ממד…',ld1:'מוכן · {n} אתרים במאגר',ldFail:'המפה לא נטענה — אפשר להמשיך עם רשימת האתרים',
+ tExplore:'חקור',tPlan:'מסלול',tSaved:'שמורים',tSet:'הגדרות',
+ c_all:'הכול',c_near:'לידי',c_fav:'מועדפים',c_recent:'נצפו לאחרונה',c_landmark:'ציוני דרך',c_historic:'היסטוריה',c_architecture:'אדריכלות',c_viewpoint:'תצפיות',c_photo:'צילום',c_shopping:'קניות',c_food:'אוכל',c_park:'פארקים',
+ noRes:'לא נמצאו אתרים. נסו מילה אחרת או הסירו סינון.',aer:'(אווירי)',fm:'{n} מ׳',fkm:'{n} ק״מ',fmin:'{n} דק׳',fh:'{h} שע׳ {m} דק׳',
+ fav:'הוסף למועדפים',unfav:'הסר ממועדפים',back:'חזרה',navigate:'נווט אליו',addPlan:'הוסף למסלול',inPlan:'במסלול',orbit:'סיבוב 360°',visit:'זמן ביקור מומלץ',facts:'עובדות',
+ hours:'שעות',hoursNote:'שעות פתיחה ומחירי כניסה לא אומתו כאן — בדקו באתר הרשמי לפני הגעה.',official:'אתר רשמי',source:'מקור: ויקיפדיה',coordNote:'המיקום לפי ויקיפדיה ו-OpenStreetMap. לדיוק מלא השתמשו ב-Google Maps.',imgCr:'תמונה: ויקיפדיה/Wikimedia',
+ routeT:'מסלול הליכה',from:'מוצא',to:'יעד',dist:'מרחק',time:'זמן הליכה',startNav:'התחל ניווט',cancel:'בטל',steps:'הוראות',legs:'קטעים',
+ viaOnline:'מחושב אונליין',viaCached:'מסלול שמור (לא חושב מחדש)',previewOnly:'אין לך GPS ברומא — זו תצוגה מקדימה בלבד. אפשר להפעיל "מצב הדגמה" בהגדרות.',
+ sugT:'בדרך — שווה עצירה',sugOn:'ממש על המסלול',sugNear:'כ-{m} מ׳ מהמסלול',sugExtra:'עיקוף משוער +{n} דק׳ (הערכה לפי מרחק אווירי)',add:'הוסף למסלול',dismiss:'דחה',view:'פרטים',added:'נוסף למסלול: {n}',undo:'בטל',undone:'בוטל',
+ pStart:'נקודת התחלה',myLoc:'המיקום שלי (GPS)',pStops:'תחנות',pEmpty:'עוד אין תחנות. הוסיפו אתרים מהרשימה.',up:'למעלה',down:'למטה',remove:'הסר',optimize:'הצע סדר קצר יותר',optimized:'הסדר שונה לפי קרבה (אפשר לבטל)',calc:'חשב מסלול הליכה',saveAs:'שמור מסלול',pName:'שם למסלול',load:'טען',del:'מחק',total:'סה״כ הליכה',visitTot:'זמן ביקורים (הערכה)',saved:'נשמר',
+ chooseStart:'איפה מתחילים?',chooseNote:'אתם לא ברומא (או שהמיקום חסום). בחרו נקודת התחלה כדי לחשב מסלול:',
+ sFav:'מועדפים',sRec:'נצפו לאחרונה',sIt:'מסלולים שמורים',none:'אין עדיין',
+ lang:'שפה',quality:'איכות תצוגה',high:'גבוהה',perf:'חסכונית',northUp:'צפון תמיד למעלה',demo:'מצב הדגמה (מיקום מדומה)',demoNote:'מדמה הליכה לאורך המסלול כדי לבדוק ניווט. זה לא GPS אמיתי ויסומן כך תמיד.',speed:'מהירות הדמיה',
+ track:'הצג את המיקום שלי',trackNote:'המיקום נשאר במכשיר שלכם בלבד ואינו נשלח לשום שרת שלנו (בקשות מסלול שולחות רק נקודות המסלול לשירות הניתוב).',
+ offT:'מוכנות לאופליין',offIn:'נתוני 15 האתרים מוטמעים בקובץ',offFav:'מועדפים ומסלולים שמורים נשמרים במכשיר',offCache:'מסלולים שחושבו קודם שמורים ({n}) ולא מחושבים מחדש',offMap:'אריחי המפה וניתוב חדש דורשים אינטרנט בגרסת קובץ יחיד',
+ about:'אודות והגבלות',aboutTxt:'המיקומים מתעדכנים לפי ויקיפדיה ו-OpenStreetMap בעת הפתיחה. שעות פתיחה ומחירים לא אומתו ולכן לא מוצגים. ניווט GPS בדפדפן עשוי להיעצר כשהמסך כבוי — השאירו את המסך דלוק.',
+ cred:'קרדיטים',credTxt:'מפה: © תורמי OpenStreetMap · OpenFreeMap · OpenMapTiles. ניתוב הליכה: FOSSGIS (Valhalla / OSRM) על נתוני OSM. תמונות וטקסט ויקיפדיה לפי הרישיון בדפים. 3D: MapLibre GL, Three.js.',
+ gpsGood:'GPS טוב',gpsFair:'GPS בינוני',gpsPoor:'GPS חלש',online:'מחובר',offline:'לא מחובר',
+ nRemain:'נותר',nEta:'הגעה',nEnd:'סיום',nPause:'השהה',nResume:'המשך',nRecenter:'מרכז',
+ s_poorGps:'אות GPS חלש — ממשיכים לנסות',s_offRoute:'יצאת מהמסלול — מחשב מחדש…',s_recalc:'מחשב מסלול מחדש…',s_denied:'הרשאת מיקום נדחתה. אפשרו מיקום בהגדרות הדפדפן.',s_paused:'הניווט מושהה',
+ retry:'נסה שוב',rerouted:'המסלול עודכן',arrivedT:'הגעת אל {n}',contTo:'המשך אל {n}',finish:'סיום ניווט',
+ notBp:'הניווט החי דורש מיקום ברומא. אפשר לצפות במסלול או להפעיל מצב הדגמה.',demoBanner:'מצב הדגמה — מיקום מדומה, לא GPS אמיתי',deviate:'סטה מהמסלול',
+ d_straight:'המשך ישר',d_slightR:'פנה מעט ימינה',d_right:'פנה ימינה',d_sharpR:'פנה בחדות ימינה',d_uturn:'הסתובב לאחור',d_sharpL:'פנה בחדות שמאלה',d_left:'פנה שמאלה',d_slightL:'פנה מעט שמאלה',d_depart:'התחל ללכת',d_arrive:'הגעת ליעד',onto:' אל ',on:' על ',
+ err_offline:'אין חיבור לאינטרנט. חישוב מסלול חדש בגרסה זו דורש חיבור (מסלולים שחושבו קודם נשמרים).',err_noRoute:'לא נמצא מסלול הליכה בין הנקודות.',err_bad:'תשובת הניתוב לא תקינה.',err_net:'שירות הניתוב לא זמין כרגע.',err_coord:'קואורדינטות לא תקינות.',err_same:'נקודת ההתחלה והיעד זהות.',err_gps:'אין אפשרות לקבל מיקום.',
+ storageFail:'שגיאת אחסון — השינוי לא נשמר',noGL:'WebGL לא זמין — רשימת האתרים עדיין עובדת.',gotLoc:'המיקום עודכן',farAway:'אתם רחוקים מרומא — המיקום מוצג רק כשאתם בעיר.',locOff:'מעקב מיקום כבוי'
+},en:{
+ ph:'Search Rome sights…',clear:'Clear',resetNorth:'Reset north',tilt:'Toggle tilt',locate:'My location',credits:'Credits',expand:'Expand/collapse panel',
+ introP:'Explore Rome like an open world — a real 3D map, real walking routes and discoveries along the way.',enter:'Start exploring',skip:'Skip intro',
+ introSub:'',c_kosher:'Kosher',hotelAir:'Hotel → Termini station',c_transit:'Airport',exNote:'Position marked by hand in Google Maps (47.496944, 19.055709). Exact street name: check the signs on site.',airBtn:'Airport ↔ city',tNote:'Stop position is approximate, based on the nearby metro station. Find the exact bus stop by the signs on site or on the BKK website.',c_hotel:'Hotel',hotelBtn:'My hotel',hNote:'Position is approximate, based on the address, until verified. For full precision use the Google Maps button.',locApprox:'Map position is approximate until verified against the address. For full precision use the Google Maps button.',theme:'Appearance',light:'Light',dark:'Dark',auto:'Auto',themeBtn:'Switch light / dark',kHeck:'Kashrut',kType:'Type',kDairy:'Dairy',kMeat:'Meat',addr:'Address',kNote:'Kashrut and opening hours are not verified here — confirm with the venue before you go (phone in the details).',gmaps:'Open in Google Maps',ld0:'Loading map & 3D…',ld1:'Ready · {n} sights in the database',ldFail:'Map failed to load — the sights list still works',
+ tExplore:'Explore',tPlan:'Plan',tSaved:'Saved',tSet:'Settings',
+ c_all:'All',c_near:'Near me',c_fav:'Favorites',c_recent:'Recent',c_landmark:'Landmarks',c_historic:'Historic',c_architecture:'Architecture',c_viewpoint:'Viewpoints',c_photo:'Photo spots',c_shopping:'Shopping',c_food:'Food & drink',c_park:'Parks',
+ noRes:'No sights found. Try another word or clear filters.',aer:'(straight line)',fm:'{n} m',fkm:'{n} km',fmin:'{n} min',fh:'{h} h {m} min',
+ fav:'Add to favorites',unfav:'Remove favorite',back:'Back',navigate:'Navigate',addPlan:'Add to plan',inPlan:'In plan',orbit:'Orbit 360°',visit:'Suggested visit',facts:'Facts',
+ hours:'Hours',hoursNote:'Opening hours and ticket prices are not verified here — check the official site before you go.',official:'Official website',source:'Source: Wikipedia',coordNote:'Position from Wikipedia and OpenStreetMap. For full precision use Google Maps.',imgCr:'Image: Wikipedia/Wikimedia',
+ routeT:'Walking route',from:'From',to:'To',dist:'Distance',time:'Walking time',startNav:'Start navigation',cancel:'Cancel',steps:'Directions',legs:'Legs',
+ viaOnline:'Calculated online',viaCached:'Saved route (not recalculated)',previewOnly:'No GPS in Rome — preview only. You can enable Demo mode in Settings.',
+ sugT:'On the way — worth a stop',sugOn:'Right on your route',sugNear:'~{m} m from the route',sugExtra:'Est. detour +{n} min (from straight-line distance)',add:'Add to route',dismiss:'Dismiss',view:'Details',added:'Added to route: {n}',undo:'Undo',undone:'Undone',
+ pStart:'Starting point',myLoc:'My location (GPS)',pStops:'Stops',pEmpty:'No stops yet. Add sights from the list.',up:'Up',down:'Down',remove:'Remove',optimize:'Suggest a shorter order',optimized:'Order changed by proximity (you can undo)',calc:'Calculate walking route',saveAs:'Save plan',pName:'Plan name',load:'Load',del:'Delete',total:'Total walking',visitTot:'Visit time (estimate)',saved:'Saved',
+ chooseStart:'Where do you start?',chooseNote:'You are not in Rome (or location is blocked). Pick a starting point to calculate a route:',
+ sFav:'Favorites',sRec:'Recently viewed',sIt:'Saved plans',none:'Nothing yet',
+ lang:'Language',quality:'Display quality',high:'High',perf:'Performance',northUp:'North always up',demo:'Demo mode (simulated location)',demoNote:'Simulates a walker along the route to test navigation. Not real GPS and always labeled.',speed:'Simulation speed',
+ track:'Show my location',trackNote:'Your location stays on your device and is never sent to our servers (route requests send only route points to the routing service).',
+ offT:'Offline readiness',offIn:'Data for all 15 sights is embedded in this file',offFav:'Favorites and saved plans are stored on your device',offCache:'Previously calculated routes are saved ({n}) but not recalculated',offMap:'Map tiles and new route calculation need internet in the single-file version',
+ about:'About & limits',aboutTxt:'Positions are refined from Wikipedia and OpenStreetMap on load. Opening hours and prices are unverified so not shown. Browser GPS may pause when the screen is off — keep the screen on.',
+ cred:'Credits',credTxt:'Map: © OpenStreetMap contributors · OpenFreeMap · OpenMapTiles. Walking routing: FOSSGIS (Valhalla / OSRM) on OSM data. Wikipedia images/text per page licenses. 3D: MapLibre GL, Three.js.',
+ gpsGood:'GPS good',gpsFair:'GPS fair',gpsPoor:'GPS weak',online:'Online',offline:'Offline',
+ nRemain:'Left',nEta:'Arrive',nEnd:'End',nPause:'Pause',nResume:'Resume',nRecenter:'Recenter',
+ s_poorGps:'Weak GPS signal — still trying',s_offRoute:'Off route — recalculating…',s_recalc:'Recalculating route…',s_denied:'Location permission denied. Allow it in browser settings.',s_paused:'Navigation paused',
+ retry:'Retry',rerouted:'Route updated',arrivedT:'Arrived at {n}',contTo:'Continue to {n}',finish:'Finish navigation',
+ notBp:'Live navigation needs your location in Rome. You can preview the route or enable Demo mode.',demoBanner:'Demo mode — simulated location, not real GPS',deviate:'Leave route',
+ d_straight:'Continue straight',d_slightR:'Bear right',d_right:'Turn right',d_sharpR:'Sharp right',d_uturn:'Make a U-turn',d_sharpL:'Sharp left',d_left:'Turn left',d_slightL:'Bear left',d_depart:'Start walking',d_arrive:'You have arrived',onto:' onto ',on:' on ',
+ err_offline:'No internet. Calculating a new route needs a connection in this version (previously calculated routes are saved).',err_noRoute:'No walking route found between the points.',err_bad:'Invalid routing response.',err_net:'Routing service unavailable right now.',err_coord:'Invalid coordinates.',err_same:'Start and destination are the same.',err_gps:'Cannot get a location.',
+ storageFail:'Storage error — change not saved',noGL:'WebGL unavailable — the sights list still works.',gotLoc:'Location updated',farAway:'You are far from Rome — your position is shown only when you are in the city.',locOff:'Location tracking off'
+}};
+function t(k,v){let s=(T[S.lang]&&T[S.lang][k])??T.en[k]??k;if(v)for(const x in v)s=s.replace('{'+x+'}',v[x]);return s}
+
+/* ============================ data ============================ */
+const CATS=['transit','hotel','kosher','landmark','historic','architecture','viewpoint','photo','shopping','food','park'];
+const A=[
+{"id": "trevi", "he": "מזרקת טרווי", "en": "Trevi Fountain", "hu": "Fontana di Trevi", "cats": ["landmark", "photo", "architecture"], "lat": 41.90093, "lon": 12.48331, "mins": 20, "icon": "📍", "hue": 200, "wiki": "Trevi_Fountain", "dHe": "המזרקה הבארוקית הגדולה ברומא, צמודה לחזית ארמון. מסורת: זורקים מטבע מעבר לכתף כדי להבטיח שובה לעיר.", "dEn": "The largest Baroque fountain in Rome, set against a palace façade. Tradition: toss a coin over your shoulder to ensure your return.", "fHe": ["הושלמה ב-1762 בעיצוב ניקולה סלווי", "כאן מסתיימת אמת המים העתיקה Aqua Virgo"], "fEn": ["Completed in 1762, designed by Nicola Salvi", "Marks the end of the ancient Aqua Virgo aqueduct"]},
+{"id": "steps", "he": "המדרגות הספרדיות", "en": "Spanish Steps", "hu": "Scalinata di Trinità dei Monti", "cats": ["landmark", "photo"], "lat": 41.90598, "lon": 12.48277, "mins": 25, "icon": "📍", "hue": 30, "wiki": "Spanish_Steps", "dHe": "גרם מדרגות רחב שמחבר את פיאצה די ספניה לכנסיית טרינטה די מונטי שמעליו. נקודת מפגש ותצפית קלאסית.", "dEn": "A wide stairway linking Piazza di Spagna to the Trinità dei Monti church above. A classic meeting and viewing spot.", "fHe": ["נבנו בין 1723 ל-1725", "אסור לשבת עליהן — יש קנסות"], "fEn": ["Built 1723–1725", "Sitting on the steps is not allowed and can be fined"]},
+{"id": "pantheon", "he": "הפנתאון", "en": "Pantheon", "hu": "Pantheon", "cats": ["landmark", "historic", "architecture"], "lat": 41.89861, "lon": 12.47686, "mins": 40, "icon": "📍", "hue": 260, "wiki": "Pantheon,_Rome", "dHe": "מקדש רומי עתיק שהפך לכנסייה, עם כיפה אדירה ופתח עגול (אוקולוס) בראשה שמכניס אור וגשם.", "dEn": "An ancient Roman temple turned church, with a vast dome and a round opening (oculus) that lets in light and rain.", "fHe": ["נבנה מחדש בימי הדריאנוס, בערך 126 לספירה", "קוטר הכיפה כ-43 מ׳"], "fEn": ["Rebuilt under Hadrian, around AD 126", "The dome is about 43 m across"]},
+{"id": "navona", "he": "פיאצה נבונה", "en": "Piazza Navona", "hu": "Piazza Navona", "cats": ["landmark", "architecture", "photo"], "lat": 41.89893, "lon": 12.4731, "mins": 40, "icon": "📍", "hue": 20, "wiki": "Piazza_Navona", "dHe": "כיכר בארוקית אורכית עם שלוש מזרקות, בנויה על מקום האצטדיון העתיק של דומיטיאנוס. הרבה קפה, אמנים ואווירה.", "dEn": "An elongated Baroque square with three fountains, built on the site of Domitian’s ancient stadium. Cafés, artists and atmosphere.", "fHe": ["מזרקת ארבעת הנהרות של ברניני מ-1651", "צורת הכיכר היא צורת האצטדיון הרומי"], "fEn": ["Bernini’s Fountain of the Four Rivers dates from 1651", "The square follows the shape of the Roman stadium"]},
+{"id": "colosseum", "he": "הקולוסיאום", "en": "Colosseum", "hu": "Colosseo", "cats": ["landmark", "historic", "architecture"], "lat": 41.89021, "lon": 12.49223, "mins": 120, "icon": "📍", "hue": 25, "wiki": "Colosseum", "dHe": "האמפיתיאטרון הגדול של רומא העתיקה, סמל העיר. כדאי להזמין כרטיס מראש ולהגיע בתחילת היום.", "dEn": "The great amphitheatre of ancient Rome and the city’s symbol. Book tickets in advance and arrive early in the day.", "fHe": ["הבנייה החלה סביב 70–72 לספירה ונחנך ב-80 לספירה", "יכול היה להכיל כ-50,000 צופים"], "fEn": ["Construction began around AD 70–72; opened AD 80", "Could hold about 50,000 spectators"]},
+{"id": "forum", "he": "הפורום הרומי", "en": "Roman Forum", "hu": "Foro Romano", "cats": ["historic", "landmark"], "lat": 41.8925, "lon": 12.4853, "mins": 90, "icon": "📍", "hue": 40, "wiki": "Roman_Forum", "dHe": "לב הציבורי של רומא העתיקה: שרידי מקדשים, בזיליקות וקשתות ניצחון בין הקולוסיאום לגבעת הקפיטולין.", "dEn": "The public heart of ancient Rome: ruins of temples, basilicas and triumphal arches between the Colosseum and the Capitoline Hill.", "fHe": ["היה מרכז החיים הפוליטיים והדתיים של העיר", "קשת טיטוס נבנתה ב-81 לספירה לציון הניצחון ביהודה"], "fEn": ["The centre of the city’s political and religious life", "The Arch of Titus (c. AD 81) commemorates the victory in Judaea"]},
+{"id": "stpeter", "he": "כיכר פטרוס הקדוש", "en": "St. Peter’s Square", "hu": "Piazza San Pietro", "cats": ["landmark", "architecture", "historic"], "lat": 41.90217, "lon": 12.45395, "mins": 40, "icon": "📍", "hue": 45, "wiki": "St._Peter's_Square", "dHe": "הכיכר מול בזיליקת פטרוס הקדוש בוותיקן, עם עמודי שורות מרשימים ומזרקות. כדאי להגיע לפני התורים.", "dEn": "The square in front of St. Peter’s Basilica in Vatican City, framed by great colonnades and fountains. Arrive before the queues.", "fHe": ["תוכננה על ידי ברניני ונבנתה בין 1656 ל-1667", "בכניסה לבזיליקה נדרש לבוש צנוע: כתפיים וברכיים מכוסות"], "fEn": ["Designed by Bernini and built 1656–1667", "Modest dress is required to enter the basilica: shoulders and knees covered"]},
+{"id": "castel", "he": "קסטל סנטאנג׳לו", "en": "Castel Sant’Angelo", "hu": "Castel Sant’Angelo", "cats": ["historic", "viewpoint", "architecture"], "lat": 41.9031, "lon": 12.46632, "mins": 90, "icon": "📍", "hue": 10, "wiki": "Castel_Sant'Angelo", "dHe": "מבצר עגול על גדת הטיבר, שהחל כמאוזוליאום של הדריאנוס. ממרפסת הגג רואים את כל רומא.", "dEn": "A round fortress on the Tiber, which began as Hadrian’s mausoleum. The rooftop terrace overlooks all of Rome.", "fHe": ["נבנה סביב 139 לספירה", "מחובר לוותיקן במעבר מוגן, ה-Passetto di Borgo"], "fEn": ["Built around AD 139", "Linked to the Vatican by a fortified passage, the Passetto di Borgo"]},
+{"id": "vittoriano", "he": "ויטוריאנו", "en": "Vittoriano", "hu": "Vittoriano (Altare della Patria)", "cats": ["landmark", "viewpoint", "architecture"], "lat": 41.89462, "lon": 12.48328, "mins": 60, "icon": "📍", "hue": 0, "wiki": "Vittoriano", "dHe": "האנדרטה הלבנה הענקית על פיאצה ונציה. אפשר לעלות למרפסות ולראות פנורמה על הפורום והעיר.", "dEn": "The huge white monument on Piazza Venezia. You can go up to the terraces for a panorama over the Forum and the city.", "fHe": ["מוקדש לוויטוריו עמנואל השני, נחנך ב-1911", "כולל את קבר החייל האלמוני"], "fEn": ["Dedicated to Victor Emmanuel II, inaugurated in 1911", "Contains the Tomb of the Unknown Soldier"]},
+{"id": "pincio", "he": "תצפית פינצ׳יו", "en": "Pincio Terrace", "hu": "Terrazza del Pincio", "cats": ["viewpoint", "photo", "park"], "lat": 41.91151, "lon": 12.47932, "mins": 30, "icon": "📍", "hue": 35, "wiki": "Pincian_Hill", "dHe": "מרפסת תצפית בגבעת פינצ׳ו מעל פיאצה דל פופולו, מושלמת לשקיעה על כיפת פטרוס הקדוש.", "dEn": "A viewing terrace on the Pincian Hill above Piazza del Popolo, ideal for sunset over the dome of St. Peter’s.", "fHe": ["המרפסת נקראת גם Piazzale Napoleone I", "הגנים תוכננו בתחילת המאה ה-19 על ידי ולדיאר"], "fEn": ["The terrace is also called Piazzale Napoleone I", "The gardens were laid out in the early 19th century by Valadier"]},
+{"id": "popolo", "he": "פיאצה דל פופולו", "en": "Piazza del Popolo", "hu": "Piazza del Popolo", "cats": ["landmark", "photo"], "lat": 41.91064, "lon": 12.47637, "mins": 20, "icon": "📍", "hue": 160, "wiki": "Piazza_del_Popolo", "dHe": "כיכר גדולה בצורת אליפסה בשער הצפוני של העיר, עם אובליסק מצרי ושתי כנסיות תאומות.", "dEn": "A large oval square at the city’s northern gate, with an Egyptian obelisk and twin churches.", "fHe": ["עוצבה מחדש בראשית המאה ה-19 על ידי ולדיאר", "האובליסק הובא מאגיפטוס בימי אוגוסטוס"], "fEn": ["Redesigned in the early 19th century by Valadier", "The obelisk was brought from Egypt under Augustus"]},
+{"id": "trastevere", "he": "טרסטוורה — סנטה מריה", "en": "Trastevere — Santa Maria", "hu": "Santa Maria in Trastevere", "cats": ["food", "historic", "photo"], "lat": 41.88961, "lon": 12.46986, "mins": 90, "icon": "📍", "hue": 15, "wiki": "Santa_Maria_in_Trastevere", "dHe": "השכונה הציורית מעבר לטיבר: סמטאות מרוצפות, מסעדות ובתי קפה, ובלבה כנסייה עתיקה עם פסיפסים מוזהבים.", "dEn": "The picturesque neighbourhood across the Tiber: cobbled lanes, restaurants and cafés, with an ancient church of golden mosaics at its heart.", "fHe": ["אחת הכנסיות העתיקות ברומא; הבניין הנוכחי מהמאה ה-12", "פסיפסי הקיר מהמאות ה-12–13"], "fEn": ["One of Rome’s oldest churches; the present building dates from the 12th century", "Wall mosaics from the 12th–13th centuries"]},
+{"id": "borghese", "he": "וילה בורגזה", "en": "Villa Borghese", "hu": "Villa Borghese", "cats": ["park"], "lat": 41.9142, "lon": 12.4923, "mins": 120, "icon": "📍", "hue": 120, "wiki": "Villa_Borghese_gardens", "dHe": "הפארק הגדול ברומא: שבילים, אגם, גנים ומוזיאונים. ל-Galleria Borghese יש כניסה בשעות קבועות בהזמנה מראש.", "dEn": "Rome’s great park: paths, a lake, gardens and museums. The Galleria Borghese uses timed entry with advance booking.", "fHe": ["הפארק מתחיל מעל פיאצה דל פופולו", "לגלריה בורגזה נדרשת הזמנה מראש"], "fEn": ["The park begins above Piazza del Popolo", "The Galleria Borghese requires advance booking"]},
+{"id": "smmaggiore", "he": "סנטה מריה מג׳ורה", "en": "Santa Maria Maggiore", "hu": "Basilica di Santa Maria Maggiore", "cats": ["architecture", "historic"], "lat": 41.8975, "lon": 12.4986, "mins": 40, "icon": "📍", "hue": 50, "wiki": "Santa_Maria_Maggiore", "dHe": "אחת מארבע הבזיליקות הפפאליות הגדולות של רומא, עם פסיפסים עתיקים ופנים מפוארים.", "dEn": "One of the four major papal basilicas of Rome, with ancient mosaics and a splendid interior.", "fHe": ["נבנתה במאה ה-5", "מגדל הפעמונים שלה הוא הגבוה ברומא"], "fEn": ["Built in the 5th century", "Its bell tower is the tallest in Rome"]},
+{"id": "ghetto", "he": "הרובע היהודי ופורטיקו אוקטביה", "en": "Jewish Ghetto & Portico d’Ottavia", "hu": "Ghetto ebraico", "cats": ["historic", "food"], "lat": 41.89187, "lon": 12.47715, "mins": 60, "icon": "📍", "hue": 210, "wiki": null, "dHe": "הרובע ההיסטורי של יהודי רומא, אחת הקהילות העתיקות באירופה. סביב פורטיקו אוקטביה: בית הכנסת הגדול, מסעדות ומאפיות כשרות.", "dEn": "The historic quarter of Rome’s Jews, one of Europe’s oldest communities. Around the Portico d’Ottavia: the Great Synagogue, kosher restaurants and bakeries.", "fHe": ["הגטו הוקם ב-1555 ונסגר ב-1870", "בית הכנסת הגדול נבנה בין 1901 ל-1904"], "fEn": ["The ghetto was established in 1555 and abolished in 1870", "The Great Synagogue was built 1901–1904"], "gq": "Portico d’Ottavia, Roma, Italia"}];
+/* Kosher restaurants. Add entries here: {id,he,en,hu,lat,lon,heck:'hechsher text',addr:'',hours:''} */
+const HOTEL=[{id:'hotel',he:"Hotel 55 Fifty Five Maison d'Art Collection",en:"Hotel 55 Fifty Five Maison d'Art Collection",hu:'',addr:'Via della Vite, 13',tel:'+39 06 39379774',mail:'55hotelrome@gmail.com',lat:41.9049,lon:12.4807,mins:0,hue:330,wiki:null,cats:['hotel'],h:1,dHe:'המלון שלך ברומא (4 כוכבים), במרכז ההיסטורי. ההזמנה: לילה אחד, חדר אחד, צ׳ק-אין 25 באוקטובר 2026.',dEn:'Your hotel in Rome (4 stars), in the historic centre. Booking: one night, one room, check-in 25 October 2026.',fHe:[],fEn:[],icon:'🏨'}];
+HOTEL.forEach(h=>A.unshift(h));
+const AIR=[
+ {id:'ap_fco',he:'שדה התעופה פיומיצ׳ינו — תחנת הרכבת',en:'Fiumicino Airport — train station',gq:'Aeroporto di Fiumicino stazione, Fiumicino, Italia',lat:41.8003,lon:12.2395,dHe:'תחנת הרכבת בשדה (FCO), משם יוצאת רכבת Leonardo Express לטרמיני. קונים כרטיס בתחנה או באפליקציית Trenitalia.',dEn:'The airport train station (FCO), where the Leonardo Express to Termini departs. Buy tickets at the station or in the Trenitalia app.'},
+ {id:'ap_termini',he:'רומא טרמיני — רציפים 23–24',en:'Roma Termini — platforms 23–24',gq:'Roma Termini stazione, Roma, Italia',lat:41.9009,lon:12.5016,dHe:'תחנת הרכבת המרכזית של רומא. ה-Leonardo Express מגיע לרציפים 23–24, ומשם עוברים למטרו קו A.',dEn:'Rome’s central station. The Leonardo Express arrives at platforms 23–24; from here you switch to Metro line A.'},
+ {id:'ap_spagna',he:'מטרו Spagna (קו A)',en:'Spagna metro station (line A)',gq:'Spagna metropolitana, Roma, Italia',lat:41.9061,lon:12.4857,dHe:'התחנה הקרובה למדרגות הספרדיות ולמלון. ממנה נוסעים בקו A ל-Termini (כיוון Anagnina).',dEn:'The station nearest the Spanish Steps and the hotel. From here Metro line A runs to Termini (direction Anagnina).'}];
+AIR.forEach(x=>A.push(Object.assign({hu:'',mins:0,hue:170,wiki:null,fHe:[],fEn:[],icon:'🚆',t:1},x,{cats:['transit']})));
+const KOSHER=[
+{"id": "k_bona", "he": "Bona Pizza", "en": "Bona Pizza", "hu": "Bona Pizza", "addr": "Via del Portico d'Ottavia 7", "tel": "+39 06 68805820", "lat": 41.8921, "lon": 12.4769, "dHe": "פיצה, פסטה ומנות מהמטבח הרומאי.", "dEn": "Pizza, pasta and dishes from Roman cuisine."},
+{"id": "k_cepasta", "he": "C'è Pasta e Pizza", "en": "C'è Pasta e Pizza", "hu": "C'è Pasta e Pizza", "addr": "Via Giuseppe Massari 4/10, 00152", "tel": "+39 06 5806517", "lat": 41.8786, "lon": 12.4586, "dHe": "פיצה בתנור עצים ופסטה טרייה.", "dEn": "Wood-fired pizza and fresh pasta."},
+{"id": "k_dolce", "he": "Dolce Kosher", "en": "Dolce Kosher", "hu": "Dolce Kosher", "addr": "Via Fonteiana 18", "tel": "+39 06 5809940", "lat": 41.8827, "lon": 12.4538, "dHe": "בית קפה, מאפייה, כריכים ומאפים.", "dEn": "Café, bakery, sandwiches and pastries."},
+{"id": "k_marlene", "he": "Cremeria Romana – Marlene’s Gelateria", "en": "Cremeria Romana – Marlene’s Gelateria", "hu": "Cremeria Romana – Marlene’s Gelateria", "addr": "Via del Portico d'Ottavia 1/B", "tel": "+39 349 5129486", "lat": 41.892, "lon": 12.4766, "dHe": "גלידריה כשרה.", "dEn": "Kosher gelateria."},
+{"id": "k_boccione", "he": "Pasticceria Boccione", "en": "Pasticceria Boccione", "hu": "Pasticceria Boccione", "addr": "Via del Portico d'Ottavia 1", "tel": "+39 06 6878637", "lat": 41.892, "lon": 12.4766, "dHe": "מאפייה יהודית מסורתית עם עוגות ומאפים.", "dEn": "Traditional Jewish bakery with cakes and pastries."}];
+KOSHER.forEach(k=>A.push(Object.assign({hu:'',mins:60,hue:205,wiki:null,web:'',fHe:[],fEn:[],icon:'🍽️',k:1},k,{cats:['kosher','food']})));
+const byId=id=>A.find(a=>a.id===id);
+const nm=a=>S.lang==='he'?a.he:a.en, alt=a=>S.lang==='he'?a.en:a.he;
+
+/* ============================ state ============================ */
+const S={lang:store.get('lang','he'),quality:store.get('q','high'),theme:store.get('theme','auto'),northUp:store.get('north',false),demo:store.get('demo',false),simSpeed:store.get('simSpeed',8),
+ favs:new Set(store.get('favs',[])),recents:store.get('recents',[]),itins:store.get('itins',[]),dismissed:new Set(),
+ cat:'all',q:'',view:'explore',tab:'explore',snap:'half',sel:null,user:null,tracking:false,watchId:null,geoDenied:false,lastFix:0,
+ plan:{start:store.get('pstart','gps'),stops:store.get('pstops',[])},trip:null,orbit:false,mapOK:false};
+const N={state:'idle',route:null,li:0,follow:true,offCnt:0,busy:false,abort:null,lastTry:0,lastSug:0,arrivedFlag:false,active:false,paused:false,sugA:null,last:null,wake:null};
+let mapTheme='dark',map=null,markers={},meMarker=null,mkA=null,mkB=null,beacon=null;
+
+/* ============================ geometry ============================ */
+function hav(a,b){const dLat=(b[1]-a[1])*rad,dLon=(b[0]-a[0])*rad;const s=Math.sin(dLat/2)**2+Math.cos(a[1]*rad)*Math.cos(b[1]*rad)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(s)))}
+function brg(a,b){const y=Math.sin((b[0]-a[0])*rad)*Math.cos(b[1]*rad);const x=Math.cos(a[1]*rad)*Math.sin(b[1]*rad)-Math.sin(a[1]*rad)*Math.cos(b[1]*rad)*Math.cos((b[0]-a[0])*rad);return (Math.atan2(y,x)/rad+360)%360}
+function prep(r){r.cum=[0];for(let i=1;i<r.coords.length;i++)r.cum[i]=r.cum[i-1]+hav(r.coords[i-1],r.coords[i]);r.total=r.cum[r.cum.length-1];return r}
+function project(r,p){const k=Math.cos(p[1]*rad);let best={dist:Infinity,idx:0,t:0,along:0};
+ for(let i=0;i<r.coords.length-1;i++){const a=r.coords[i],b=r.coords[i+1];
+  const ax=(a[0]-p[0])*rad*k*R,ay=(a[1]-p[1])*rad*R,bx=(b[0]-p[0])*rad*k*R,by=(b[1]-p[1])*rad*R;
+  const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;let u=L2?-(ax*dx+ay*dy)/L2:0;u=Math.max(0,Math.min(1,u));
+  const d=Math.hypot(ax+u*dx,ay+u*dy);
+  if(d<best.dist)best={dist:d,idx:i,t:u,along:r.cum[i]+u*(r.cum[i+1]-r.cum[i])}}
+ return best}
+function pointAt(r,along){along=Math.max(0,Math.min(r.total,along));let i=0;while(i<r.cum.length-2&&r.cum[i+1]<along)i++;
+ const a=r.coords[i],b=r.coords[i+1],L=r.cum[i+1]-r.cum[i]||1,u=(along-r.cum[i])/L;
+ return {pt:[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u],idx:i,hdg:brg(a,b)}}
+function offsetPt(p,m,bearing){const d=m/R,b=bearing*rad,la=p[1]*rad,lo=p[0]*rad;
+ const la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(b));
+ const lo2=lo+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));return [lo2/rad,la2/rad]}
+function decodePoly6(str){let i=0,lat=0,lon=0;const out=[];
+ while(i<str.length){let b,s=0,r=0;do{b=str.charCodeAt(i++)-63;r|=(b&31)<<s;s+=5}while(b>=32);lat+=(r&1)?~(r>>1):(r>>1);
+  s=0;r=0;do{b=str.charCodeAt(i++)-63;r|=(b&31)<<s;s+=5}while(b>=32);lon+=(r&1)?~(r>>1):(r>>1);out.push([lon/1e6,lat/1e6])}
+ return out}
+function circlePoly(c,m,n=48){const pts=[];for(let i=0;i<=n;i++)pts.push(offsetPt(c,m,i*360/n));return pts}
+
+/* ============================ formatting ============================ */
+const fmtD=m=>{if(!isFinite(m))return '–';m=Math.round(m);return m<1000?t('fm',{n:m}):t('fkm',{n:(m/1000).toFixed(1)})};
+const fmtT=s=>{const m=Math.max(1,Math.round(s/60));return m<60?t('fmin',{n:m}):t('fh',{h:Math.floor(m/60),m:m%60})};
+const userInBp=()=>!!(S.user&&hav([S.user.lon,S.user.lat],BP)<45000);
+const distTo=a=>userInBp()?hav([S.user.lon,S.user.lat],[a.lon,a.lat]):null;
+
+/* ============================ routing ============================ */
+const E=c=>Object.assign(new Error(c),{code:c});
+const dirV=ty=>({4:'arrive',5:'arrive',6:'arrive',1:'depart',2:'depart',3:'depart',9:'slightR',10:'right',11:'sharpR',12:'uturn',13:'uturn',14:'sharpL',15:'left',16:'slightL',18:'slightR',20:'slightR',23:'slightR',19:'slightL',21:'slightL',24:'slightL'}[ty]||'straight');
+function dirO(m){if(m.type==='depart')return 'depart';if(m.type==='arrive')return 'arrive';
+ return {'straight':'straight','slight right':'slightR','right':'right','sharp right':'sharpR','uturn':'uturn','sharp left':'sharpL','left':'left','slight left':'slightL'}[m.modifier||'straight']||'straight'}
+function fetchJ(url,ms,sig){const c=new AbortController();const to=setTimeout(()=>c.abort(),ms);const h=()=>c.abort();sig.addEventListener('abort',h);
+ return fetch(url,{signal:c.signal}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).finally(()=>{clearTimeout(to);sig.removeEventListener('abort',h)})}
+function validCoords(c){return Array.isArray(c)&&c.length>=2&&c.every(p=>p&&isFinite(p[0])&&isFinite(p[1])&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90)}
+async function valhalla(locs,sig){
+ const body={locations:locs.map(l=>({lat:l.lat,lon:l.lon,type:'break'})),costing:'pedestrian',directions_options:{units:'kilometers',language:'en-US'}};
+ const j=await fetchJ('https://valhalla1.openstreetmap.de/route?json='+encodeURIComponent(JSON.stringify(body)),12000,sig);
+ const tr=j&&j.trip;if(!tr||!tr.legs||!tr.legs.length||tr.status!==0)throw E('bad');
+ let coords=[],steps=[],legs=[];
+ tr.legs.forEach((lg,li)=>{const sh=decodePoly6(lg.shape);const base=coords.length?coords.length-1:0;coords=coords.concat(coords.length?sh.slice(1):sh);
+  (lg.maneuvers||[]).forEach(m=>steps.push({dir:dirV(m.type),name:(m.street_names&&m.street_names[0])||'',dist:(m.length||0)*1000,time:m.time||0,idx:base+(m.begin_shape_index||0),leg:li,arrive:[4,5,6].includes(m.type)}));
+  legs.push({dist:lg.summary.length*1000,time:lg.summary.time,endIdx:coords.length-1})});
+ if(!validCoords(coords))throw E('bad');
+ return {coords,steps,legs,time:tr.summary.time,provider:'Valhalla (FOSSGIS)'}}
+async function osrm(locs,sig){
+ const u='https://routing.openstreetmap.de/routed-foot/route/v1/foot/'+locs.map(l=>l.lon+','+l.lat).join(';')+'?overview=full&geometries=geojson&steps=true';
+ const j=await fetchJ(u,12000,sig);if(!j||j.code!=='Ok'||!j.routes||!j.routes[0])throw E(j&&j.code==='NoRoute'?'noRoute':'bad');
+ const r=j.routes[0],coords=r.geometry.coordinates;if(!validCoords(coords))throw E('bad');
+ const steps=[],legs=[];let from=0;
+ r.legs.forEach((lg,li)=>{lg.steps.forEach(s=>{const loc=s.maneuver.location;let bi=from,bd=Infinity;
+   for(let i=from;i<coords.length;i++){const d=hav(coords[i],loc);if(d<bd){bd=d;bi=i;if(d<1)break}}
+   from=bi;steps.push({dir:dirO(s.maneuver),name:s.name||'',dist:s.distance,time:s.duration,idx:bi,leg:li,arrive:s.maneuver.type==='arrive'})});
+  legs.push({dist:lg.distance,time:lg.duration,endIdx:from})});
+ legs.forEach((l,i)=>{l.endIdx=i===legs.length-1?coords.length-1:l.endIdx});
+ return {coords,steps,legs,time:r.duration,provider:'OSRM foot (FOSSGIS)'}}
+const rkey=locs=>locs.map(l=>l.lat.toFixed(4)+','+l.lon.toFixed(4)).join('|');
+function cacheGet(k){const c=store.get('rc',[]).find(x=>x.k===k);return c?prep(Object.assign({},c.r,{via:'cached'})):null}
+function cachePut(k,r){const c=store.get('rc',[]).filter(x=>x.k!==k);const slim={coords:r.coords,steps:r.steps,legs:r.legs,time:r.time,provider:r.provider};c.unshift({k,ts:Date.now(),r:slim});store.set('rc',c.slice(0,6))}
+async function routeFn(locs){
+ if(locs.length<2)throw E('coord');
+ for(const l of locs)if(!isFinite(l.lat)||!isFinite(l.lon)||Math.abs(l.lat)>90||Math.abs(l.lon)>180)throw E('coord');
+ if(locs.every(l=>hav([l.lon,l.lat],[locs[0].lon,locs[0].lat])<5))throw E('same');
+ if(N.abort)N.abort.abort();const ac=new AbortController();N.abort=ac;const k=rkey(locs);
+ const sup=()=>{if(N.abort!==ac)throw E('superseded')};
+ if(!navigator.onLine){const c=cacheGet(k);if(c)return c;throw E('offline')}
+ let r=null,lastE=null;
+ for(const fn of [valhalla,osrm]){try{r=await fn(locs,ac.signal);break}catch(e){sup();lastE=e;if(e.code==='noRoute')throw e}}
+ sup();
+ if(!r){const c=cacheGet(k);if(c)return c;throw E(lastE&&lastE.code==='bad'?'bad':'net')}
+ prep(r);r.via='online';cachePut(k,r);return r}
+function stepText(s){const b=t('d_'+s.dir);if(s.dir==='arrive'||!s.name)return b;return b+(s.dir==='straight'||s.dir==='depart'?t('on'):t('onto'))+s.name}
+const ARROW='<svg viewBox="0 0 24 24"><path d="M12 2.5l8 9.5h-5.2V21H9.2v-9H4z"/></svg>';
+const PIN='<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>';
+const ROT={straight:0,depart:0,slightR:45,right:90,sharpR:135,uturn:180,sharpL:-135,left:-90,slightL:-45,arrive:0};
+const arrow=d=>d==='arrive'?PIN:ARROW.replace('<svg','<svg style="transform:rotate('+ROT[d]+'deg)"');
+
+/* ============================ icons + motion (GSAP) ============================ */
+const ic=(n,fb)=>`<i data-lucide="${n}" data-fb="${fb||''}"></i>`;
+const CI={landmark:'landmark',historic:'castle',architecture:'building-2',viewpoint:'mountain',photo:'camera',shopping:'shopping-bag',food:'utensils',transit:'bus',hotel:'bed-double',kosher:'utensils-crossed',park:'trees'};
+function hydrateIcons(){try{if(window.lucide&&lucide.createIcons)lucide.createIcons({attrs:{'stroke-width':2}})}catch(e){}
+ document.querySelectorAll('i[data-lucide]').forEach(e=>e.replaceWith(document.createTextNode(e.dataset.fb||'')))}
+const GS=()=>!!(window.gsap&&!RM);const MO=GS;
+function parseT(s){const o={};String(s).replace(/(translateX|translateY|scale)\(([-\d.]+)(?:px)?\)/g,(m,k,v)=>{o[k==='scale'?'scale':k==='translateX'?'x':'y']=+v;return m});return o}
+const stag=(each,o)=>({each,start:(o&&o.startDelay)||0});
+function mo(tg,kf,o){try{if(!GS()||!tg||tg.length===0)return null;o=o||{};const from={},to={};
+ for(const k in kf){const v=kf[k];if(k==='opacity'){from.opacity=v[0];to.opacity=v[1]}else if(k==='transform'){const a=parseT(v[0]),b=parseT(v[1]);for(const p of new Set([...Object.keys(a),...Object.keys(b)])){const d=p==='scale'?1:0;from[p]=a[p]!=null?a[p]:d;to[p]=b[p]!=null?b[p]:d}}}
+ to.duration=o.duration!=null?o.duration:.5;to.ease=(Array.isArray(o.ease)&&o.ease[1]>1)?'back.out(1.6)':'power3.out';
+ const d=o.delay;if(d&&typeof d==='object'){to.stagger=d.each;to.delay=d.start||0}else if(d)to.delay=d;
+ to.clearProps='transform,opacity';to.overwrite='auto';return gsap.fromTo(tg,from,to)}catch(e){return null}}
+function enter(sel,o){let n=typeof sel==='string'?[...document.querySelectorAll(sel)]:sel;if(!n||!n.length)return;mo(n.slice(0,14),{opacity:[0,1],transform:['translateY(14px)','translateY(0px)']},Object.assign({delay:stag(.04),duration:.5},o))}
+const seenCnt=new Set();
+function countUps(){if(!GS())return;document.querySelectorAll('[data-cnt]').forEach(el=>{const id=el.dataset.k+el.dataset.cnt+(S.trip&&S.trip.route?S.trip.route.coords.length:0);if(seenCnt.has(id))return;seenCnt.add(id);
+ const o={v:0},to=+el.dataset.cnt;gsap.to(o,{v:to,duration:1.1,ease:'power3.out',onUpdate:()=>{el.textContent=el.dataset.k==='d'?fmtD(o.v):fmtT(o.v)}})})}
+
+/* ============================ UI helpers ============================ */
+let toastT=null;
+function toast(msg,action){const el=$('#toast');el.innerHTML='';const d=document.createElement('div');const s=document.createElement('span');s.textContent=msg;d.appendChild(s);
+ if(action){const b=document.createElement('button');b.textContent=action.label;b.onclick=()=>{action.fn();el.innerHTML=''};d.appendChild(b)}
+ el.appendChild(d);hydrateIcons();mo(d,{opacity:[0,1],transform:['translateY(18px) scale(.95)','translateY(0px) scale(1)']},{duration:.4});clearTimeout(toastT);toastT=setTimeout(()=>el.innerHTML='',action?7000:3200)}
+function showModal(html){const m=$('#modal');m.innerHTML='<div class="box" role="dialog" aria-modal="true">'+html+'</div>';m.hidden=false;hydrateIcons();mo(m,{opacity:[0,1]},{duration:.25});mo(m.querySelector('.box'),{opacity:[0,1],transform:['translateY(24px) scale(.96)','translateY(0px) scale(1)']},{duration:.45});const f=m.querySelector('button');if(f)f.focus()}
+function closeModal(){$('#modal').hidden=true;$('#modal').innerHTML=''}
+const isDesk=()=>matchMedia('(min-width:900px)').matches;
+function snapH(){if(isDesk())return 0;const h=innerHeight;return {peek:178,half:Math.round(h*.5),full:Math.round(h*.88)}[S.snap]}
+function applySnap(){const h=snapH();$('#sheet').style.height=isDesk()?'':h+'px';document.body.dataset.snap=S.snap;document.documentElement.style.setProperty('--sh',(isDesk()||document.body.classList.contains('nav'))?'0px':h+'px')}
+function setSnap(s){S.snap=s;applySnap()}
+function camPad(){const side=document.documentElement.dir==='rtl'?'right':'left';
+ if(document.body.classList.contains('nav'))return {top:150,bottom:(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nbh'))||150)+30,left:20,right:20};
+ return isDesk()?{top:80,bottom:40,left:20,right:20,[side]:440}:{top:130,bottom:snapH()+20,left:20,right:20}}
+
+/* ============================ rendering ============================ */
+const TABS=[['explore','tExplore'],['plan','tPlan'],['saved','tSaved'],['settings','tSet']];
+let scrollMem={};
+function render(){
+ const IC={explore:'compass',plan:'route',saved:'bookmark',settings:'settings'};
+ $('#tabs').innerHTML=TABS.map(([id,k])=>`<button class="tab" role="tab" aria-selected="${S.tab===id&&['explore','plan','saved','settings'].includes(S.view)}" data-act="tab" data-id="${id}">${ic(IC[id])}<span>${t(k)}</span></button>`).join('');
+ $('#chips').innerHTML=['all','near','fav','recent',...CATS.filter(c=>!['kosher','hotel','transit'].includes(c)||A.some(a=>a.cats.includes(c)))].map(c=>`<button class="chip" aria-pressed="${S.cat===c}" data-act="cat" data-id="${c}">${t('c_'+c)}</button>`).join('');
+ const v=$('#view'),key=S.view+(S.sel||'')+S.cat+S.tab;scrollMem[S.lastKey]=v.scrollTop;
+ const fn={explore:vExplore,plan:vPlan,saved:vSaved,settings:vSettings,detail:vDetail,route:vRoute,air:vAir}[S.view];
+ v.innerHTML=fn();const changed=S.lastKey!==key;v.scrollTop=changed?0:(scrollMem[key]||0);S.lastKey=key;
+ $('#qx').hidden=!S.q;hydrateIcons();
+ if(changed&&S.entered!==false)enter('#view > *');
+ countUps();
+ if(S.view==='detail')loadWiki(byId(S.sel));
+ refreshPins();
+}
+function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function filtered(){let L=A.filter(a=>{
+  if(a.t&&S.cat!=='transit'&&!S.q)return false;
+  if(S.cat==='fav'&&!S.favs.has(a.id))return false;if(S.cat==='recent'&&!S.recents.includes(a.id))return false;
+  if(CATS.includes(S.cat)&&!a.cats.includes(S.cat))return false;
+  if(S.cat==='near'){const d=distTo(a);if(d==null||d>2500)return false}
+  if(S.q){const hay=norm([a.he,a.en,a.hu,...a.cats.map(c=>T.he['c_'+c]+' '+T.en['c_'+c])].join(' '));if(!norm(S.q).split(/\s+/).every(w=>hay.includes(w)))return false}
+  return true});
+ if(userInBp())L.sort((a,b)=>distTo(a)-distTo(b));else if(S.cat==='recent')L.sort((a,b)=>S.recents.indexOf(a.id)-S.recents.indexOf(b.id));
+ return L}
+const wikiMem=store.get('wiki',{});
+function thumb(a){const u=wikiMem[a.id];return u?`<img class="th" src="${esc(u)}" alt="" loading="lazy" decoding="async">`:`<div class="th ph" style="--h:${a.hue}">${ic(CI[a.cats[0]]||'map-pin','◆')}</div>`}
+async function getWiki(a){if(!a.wiki)return null;if(wikiMem[a.id])return wikiMem[a.id];if(!navigator.onLine)return null;
+ try{const r=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(a.wiki));if(!r.ok)return null;const j=await r.json();const u=j.thumbnail&&j.thumbnail.source;if(j.coordinates&&!a.addr&&!a.gq&&!GEO[a.id]){const c=[j.coordinates.lat,j.coordinates.lon];if(hav([a.lon,a.lat],[c[1],c[0]])<700){GEO[a.id]=c;store.set('geo3',GEO);applyGeo(a,c)}}
+  if(u&&/^https:\/\/upload\.wikimedia\.org\//.test(u)){wikiMem[a.id]=u;store.set('wiki',wikiMem);return u}}catch(e){}return null}
+const GEO=store.get('geo3',{});const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function applyGeo(a,c){a.lat=c[0];a.lon=c[1];a.geo=1;const m=markers[a.id];if(m)m.m.setLngLat([c[1],c[0]])}
+function gqFor(a){return a.addr?a.addr+', Roma, Italia':a.gq}
+function gq2(a){return a.addr?a.addr.replace(/,?\s\d+(\/\d+[A-Za-z]?)?(?=,|$)/,'')+', Roma, Italia':null}
+async function refineGeo(){const L=A.filter(a=>(a.addr||a.gq)&&!a.geo);
+ for(const a of L){if(GEO[a.id])applyGeo(a,GEO[a.id])}
+ for(const a of L){if(GEO[a.id]||!navigator.onLine)continue;
+  for(const [q,strict] of [[gqFor(a),false],[gq2(a),true]]){if(!q)continue;
+   try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&viewbox=12.30,42.00,12.65,41.75&bounded=1&q='+encodeURIComponent(q));
+    if(r.ok){const j=await r.json();if(j[0]){const c=[+j[0].lat,+j[0].lon];if((a.addr&&!strict)||hav([a.lon,a.lat],[c[1],c[0]])<900){GEO[a.id]=c;store.set('geo3',GEO);applyGeo(a,c);if(S.sel===a.id)render();break}}}}catch(e){}
+   await sleep(1100)}
+  await sleep(1100)}}
+async function prefetchWiki(){for(const a of A){if(wikiMem[a.id])continue;const u=await getWiki(a);if(u&&['explore','saved'].includes(S.view))render()}}
+function card(a){const d=distTo(a),f=S.favs.has(a.id);
+ return `<div class="it"><button class="im" data-act="sel" data-id="${a.id}">${thumb(a)}<span class="tx2"><span class="nm">${esc(nm(a))}</span><span class="sb">${esc(alt(a))}${a.hu&&a.hu!==a.en?' / '+esc(a.hu):''}</span><span class="sb">${a.cats.slice(0,3).map(c=>t('c_'+c)).join(', ')}${d!=null?` &nbsp;<span class="ds">${fmtD(d)}</span>`:''}</span></span></button>
+ <button class="fv" data-act="fav" data-id="${a.id}" aria-pressed="${f}" aria-label="${t(f?'unfav':'fav')}">${ic('heart',f?'♥':'♡')}</button></div>`}
+function vExplore(){const L=filtered();if(S.cat==='near'&&!userInBp())return `<div class="empty">${t('farAway')}</div>`;return L.length?L.map(card).join(''):`<div class="empty">${t('noRes')}</div>`}
+const coordTxt=a=>Math.abs(a.lat).toFixed(4)+'° '+(a.lat>=0?'N':'S')+', '+Math.abs(a.lon).toFixed(4)+'° '+(a.lon>=0?'E':'W');
+function vDetail(){const a=byId(S.sel);if(!a)return '';const f=S.favs.has(a.id),inP=S.plan.stops.includes(a.id),d=distTo(a);
+ return `<div class="dh" id="hero" style="--h:${a.hue}"><div class="ghost">${ic(CI[a.cats[0]]||'map-pin','')}</div><button class="back" data-act="back">${ic('chevron-left','‹')}${t('back')}</button><small class="cr">${t('imgCr')}</small>
+  <div class="dt"><h2>${esc(nm(a))}</h2><div class="alt">${esc(alt(a))}${a.hu&&a.hu!==a.en?' / '+esc(a.hu):''}</div></div></div>
+ <div class="dpad">
+ <button class="btn pri full" data-act="navTo" data-id="${a.id}">${ic('navigation','➤')} ${t('navigate')}</button>${a.h?`<button class="btn full" data-act="hotelAir" style="margin-top:8px">${ic('plane-takeoff','✈')} ${t('hotelAir')}</button>`:''}
+ <div class="acts"><button data-act="addPlan" data-id="${a.id}">${ic(inP?'check':'plus',inP?'✓':'+')} ${inP?t('inPlan'):t('addPlan')}</button><button data-act="fav" data-id="${a.id}" aria-pressed="${f}">${ic('heart','♥')} ${t(f?'unfav':'fav')}</button></div>
+ <p class="lead" style="margin-top:20px">${esc(S.lang==='he'?a.dHe:a.dEn)}</p>
+ <dl class="facts"><dt>${t('visit')}</dt><dd>${fmtT(a.mins*60)}</dd>${d!=null?`<dt>${t('dist')}</dt><dd>${fmtD(d)} ${t('aer')}</dd>`:''}${a.kt?`<dt>${t('kType')}</dt><dd>${t(a.kt==='d'?'kDairy':'kMeat')}</dd>`:''}${a.addr?`<dt>${t('addr')}</dt><dd dir="ltr" style="text-align:start">${esc(a.addr)}, Roma</dd>`:''}${a.hours?`<dt>${t('hours')}</dt><dd>${esc(S.lang==='he'?a.hours:a.hoursEn||a.hours)}</dd>`:''}${a.heck?`<dt>${t('kHeck')}</dt><dd>${esc(S.lang==='he'?a.heck:a.heckEn||a.heck)}</dd>`:''}<dt>GPS</dt><dd dir="ltr">${coordTxt(a)}</dd></dl>
+ <h3>${t('facts')}</h3><ul class="f">${(S.lang==='he'?a.fHe:a.fEn).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+ <div class="note">${t(a.k?'kNote':a.h?'hNote':a.t?(a.ex?'exNote':'tNote'):'hoursNote')}${a.t?'':a.k||a.h?(a.geo?'':'<br>'+t('locApprox')):'<br>'+t('coordNote')}</div>
+ <div class="acts" style="border-top:1px solid var(--rule)">${a.mail?`<a href="mailto:${a.mail}">${ic('mail','✉')} ${a.mail}</a>`:''}${a.tel?`<a href="tel:${a.tel.replace(/\s/g,'')}">${ic('phone','☎')} ${a.tel}</a>`:''}${a.web?`<a href="${a.web}" target="_blank" rel="noopener noreferrer">${ic('globe','🌐')} ${t('official')}</a>`:''}${a.wiki?`<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(a.wiki)}" target="_blank" rel="noopener noreferrer">${ic('book-open','📖')} ${t('source')}</a>`:''}<a href="https://www.google.com/maps/dir/?api=1&destination=${a.addr?encodeURIComponent(a.addr+', Roma, Italia'):a.lat+','+a.lon}&travelmode=walking" target="_blank" rel="noopener noreferrer">${ic('map','🗺')} ${t('gmaps')}</a></div></div>`}
+async function loadWiki(a){if(!a)return;const u=await getWiki(a);const h=$('#hero');if(!u||!h||S.sel!==a.id||h.querySelector('.himg'))return;
+ const im=new Image();im.className='himg';im.alt='';const first=S.heroFor!==a.id;S.heroFor=a.id;
+ im.onload=()=>{if(!$('#hero')||h.querySelector('.himg')||S.sel!==a.id)return;h.prepend(im);h.classList.add('hasimg');if(GS()&&first)gsap.fromTo(im,{opacity:0,scale:1.1},{opacity:1,scale:1,duration:1.2,ease:'power2.out'})};
+ im.onerror=()=>{if(im.src!==u){im.onerror=null;im.src=u}};im.src=u.replace(/\/\d+px-/,'/800px-')}
+function vPlan(){const P=S.plan;const stops=P.stops.map(byId).filter(Boolean);
+ const visit=stops.reduce((s,a)=>s+a.mins,0);
+ return `<h2>${t('tPlan')}</h2>
+ <div class="mline"><div class="stn"><div class="nm2" style="font-size:16px;color:var(--mute);font-family:var(--sans);font-weight:500">${t('pStart')}</div>
+  <select id="pstart" aria-label="${t('pStart')}" data-chg="pstart"><option value="gps"${P.start==='gps'?' selected':''}>${t('myLoc')}</option>${A.map(a=>`<option value="${a.id}"${P.start===a.id?' selected':''}>${esc(nm(a))}</option>`).join('')}</select></div>
+ ${stops.map((a,i)=>`<div class="stn${i===stops.length-1?' end':''}"><div class="nm2">${esc(nm(a))}</div><div class="sub">${t('visit')}: ${fmtT(a.mins*60)}</div>
+  <div class="ctl"><button class="mini" data-act="up" data-i="${i}" aria-label="${t('up')}" ${i===0?'disabled':''}>${ic('arrow-up','↑')}</button><button class="mini" data-act="down" data-i="${i}" aria-label="${t('down')}" ${i===stops.length-1?'disabled':''}>${ic('arrow-down','↓')}</button><button class="mini" data-act="rm" data-i="${i}" aria-label="${t('remove')}">${ic('x','✕')}</button></div></div>`).join('')}</div>
+ ${stops.length?'':`<div class="empty">${t('pEmpty')}</div>`}
+ ${stops.length?`<div class="kv">${ic('clock','⏱')} ${t('visitTot')}: ${fmtT(visit*60)}</div>
+ <div class="row"><button class="btn pri" data-act="planGo">${ic('route','➤')} ${t('calc')}</button></div>
+ ${stops.length>2?`<div class="row" style="margin-top:0"><button class="btn" data-act="optimize">${ic('shuffle','↯')} ${t('optimize')}</button></div>`:''}
+ <h3>${t('saveAs')}</h3><div class="row" style="margin-top:0"><input class="txt" id="pname" placeholder="${t('pName')}" maxlength="40" style="flex:2"><button class="btn gold" data-act="saveIt">${ic('save','▣')} ${t('saveAs')}</button></div>`:''}`}
+function vSaved(){const fv=[...S.favs].map(byId).filter(Boolean),rc=S.recents.map(byId).filter(Boolean);
+ return `<h3 style="border-top:0">${t('sFav')}</h3>${fv.length?fv.map(card).join(''):`<div class="sb" style="padding:6px 0 12px">${t('none')}</div>`}
+ <h3>${t('sIt')}</h3>${S.itins.length?S.itins.map((it,i)=>`<div class="it"><div class="im"><span class="tx2"><span class="nm" style="font-size:19px">${esc(it.name)}</span><span class="sb">${it.stops.length} ${t('pStops')}</span></span></div><button class="btn sm" data-act="loadIt" data-i="${i}">${t('load')}</button><button class="fv" data-act="delIt" data-i="${i}" aria-label="${t('del')}">${ic('trash-2','✕')}</button></div>`).join(''):`<div class="sb" style="padding:6px 0 12px">${t('none')}</div>`}
+ <h3>${t('sRec')}</h3>${rc.length?rc.map(card).join(''):`<div class="sb" style="padding:6px 0 12px">${t('none')}</div>`}`}
+function vSettings(){const rc=store.get('rc',[]).length;
+ const seg=(act,opts,cur)=>`<div class="seg">${opts.map(([id,l])=>`<button data-act="${act}" data-id="${id}" aria-pressed="${String(cur)===String(id)}">${l}</button>`).join('')}</div>`;
+ return `<h2>${t('tSet')}</h2>
+ <div class="set"><span>${t('lang')}</span>${seg('lang',[['he','עברית'],['en','English']],S.lang)}</div>
+  <div class="set"><span>${t('theme')}</span>${seg('theme',[['light',t('light')],['dark',t('dark')],['auto',t('auto')]],S.theme)}</div>
+ <div class="set"><span>${t('northUp')}</span>${seg('northUp',[['1','ON'],['0','OFF']],S.northUp?1:0)}</div>
+ <div class="set"><span>${t('track')}</span>${seg('trackSet',[['1','ON'],['0','OFF']],S.tracking?1:0)}</div>
+ <p class="sb" style="margin:8px 0 0">${t('trackNote')}</p>
+ <div class="set"><span>${t('demo')}</span>${seg('demo',[['1','ON'],['0','OFF']],S.demo?1:0)}</div>
+ <p class="sb" style="margin:8px 0 0">${t('demoNote')}</p>
+ <div class="set"><span>${t('speed')}</span>${seg('simSpeed',[[3,'×3'],[8,'×8'],[20,'×20']],S.simSpeed)}</div>
+ <h3>${t('offT')}</h3>
+ <div class="chk"><i>✓</i>${t('offIn')}</div><div class="chk"><i>✓</i>${t('offFav')}</div><div class="chk"><i>~</i>${t('offCache',{n:rc})}</div><div class="chk"><i>✕</i>${t('offMap')}</div>
+ <h3>${t('about')}</h3><p>${t('aboutTxt')}</p><h3>${t('cred')}</h3><p>${t('credTxt')}</p>`}
+function vAir(){const he=S.lang==='he';
+ const stops=['ap_fco','ap_termini','ap_spagna'].map(byId);
+ const row=a=>`<div class="it"><button class="im" data-act="sel" data-id="${a.id}">${thumb(a)}<span class="tx2"><span class="nm" style="font-size:16.5px">${esc(nm(a))}</span></span></button></div>`;
+ const li=arr=>`<ul class="f">${arr.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+ const T=he?{h:'מהשדה לעיר וחזרה',sub:'שדה התעופה פיומיצ׳ינו (FCO) ← מרכז רומא',k1:'רכבת ישירה',k2:'כל 15–30 דקות',k3:'~32 דק׳',
+  pr:'הדרך הפשוטה: Leonardo Express ל-Roma Termini, 14 יורו ללא עצירות, ומשם מטרו קו A ל-Spagna, ליד המלון. חלופות: רכבת FL1 (כ-8 יורו, לא מגיעה ל-Termini), אוטובוס לטרמיני (כ-7–10 יורו, 45–55 דקות), או מונית רשמית במחיר קבוע של 55 יורו לכתובת בתוך החומות.',
+  g:'מהשדה למלון',gi:['בשדה עוקבים אחרי השילוט לרכבות (Treni). קונים כרטיס Leonardo Express במכונות או בדלפקים בתחנה, או באפליקציית Trenitalia — לא אצל מוכרים פרטיים, שגובים כ-17.9 יורו.','הרכבת נוסעת ישירות ל-Termini, כ-32 דקות, ומגיעה לרציפים 23–24. מזוודות בחינם.','מ-Termini: מטרו קו A, כיוון Battistini, ל-Spagna (3 תחנות: Repubblica, Barberini, Spagna). אחר כך הליכה קצרה למלון ב-Via della Vite.','מונית: רק מתחנת המוניות הרשמית בהגעות, ובדקו ברישיון על הדלת שהיא מונית של רומא. המחיר הקבוע: 55 יורו לכתובת בתוך חומות אורליאן, עד 4 נוסעים עם מזוודות.'],
+  b:'מהמלון לשדה',bi:['מ-Spagna מטרו קו A, כיוון Anagnina, ל-Termini (3 תחנות).','מ-Termini עולים על Leonardo Express לשדה, כל 15–30 דקות. את הרציף בודקים בלוח הנסיעות.','בטיסה מוקדמת או מאוחרת בדקו את שעות הרכבת האחרונה והראשונה, ושקלו מונית במחיר קבוע.'],
+  st:'התחנות',nt:'המידע לפי אתרי תחבורה ומדריכים, ללא אימות רשמי. מחירים ושעות עשויים להשתנות, ובין המקורות יש סתירה בשעות הרכבת הראשונה והאחרונה — בדקו ב-Trenitalia.',lk:'Trenitalia'}
+ :{h:'Airport ↔ city',sub:'Fiumicino (FCO) → central Rome',k1:'Direct train',k2:'Every 15–30 min',k3:'~32 min',
+  pr:'The simple way: the Leonardo Express to Roma Termini (€14, non-stop), then Metro line A to Spagna, next to the hotel. Alternatives: the FL1 regional train (about €8, does not reach Termini), an airport bus to Termini (about €7–10, 45–55 min), or an official taxi at a fixed €55 to any address inside the walls.',
+  g:'Airport to hotel',gi:['At the airport follow the signs for trains (Treni). Buy a Leonardo Express ticket at the machines or desks in the station, or in the Trenitalia app — not from private sellers, who charge about €17.90.','The train runs straight to Termini in about 32 minutes and arrives at platforms 23–24. Luggage is free.','From Termini: Metro line A toward Battistini to Spagna (3 stops: Repubblica, Barberini, Spagna). Then a short walk to the hotel on Via della Vite.','Taxi: only from the official rank at arrivals, and check the licence on the door shows a Rome taxi. Fixed fare: €55 to any address inside the Aurelian Walls, up to 4 passengers with luggage.'],
+  b:'Hotel to airport',bi:['From Spagna take Metro line A toward Anagnina to Termini (3 stops).','At Termini board the Leonardo Express to the airport, every 15–30 minutes. Check the platform on the departures board.','For an early or late flight, check the first and last train times, and consider a fixed-fare taxi.'],
+  st:'Stops',nt:'Information from transport sites and guides, not officially verified. Prices and times can change, and sources disagree on the first and last train times — check Trenitalia.',lk:'Trenitalia'};
+ return `<h2>${T.h}</h2><div class="kv"><span class="badge">${T.k1}</span><span>${T.k2}</span><span>${T.k3}</span></div><p class="sb" style="margin:6px 0 4px">${T.sub}</p>
+ <div class="note">${T.pr}</div>
+ <h3>${ic('plane-landing','↓')} ${T.g}</h3>${li(T.gi)}<h3>${ic('plane-takeoff','↑')} ${T.b}</h3>${li(T.bi)}
+ <h3>${ic('map-pin','•')} ${T.st}</h3>${stops.map(row).join('')}<div class="row"><button class="btn pri" data-act="hotelAir">${ic('route','➤')} ${t('hotelAir')}</button></div>
+ <div class="note">${T.nt}</div>
+ <div class="acts"><a href="https://www.trenitalia.com" target="_blank" rel="noopener noreferrer">${ic('globe','🌐')} ${T.lk}</a><a href="https://www.atac.roma.it" target="_blank" rel="noopener noreferrer">${ic('train-front','🚇')} ATAC</a></div>
+ <div class="row"><a class="btn gold" href="https://www.google.com/maps/dir/?api=1&origin=Fiumicino+Airport+Rome&destination=Via+della+Vite+13+Roma&travelmode=transit" target="_blank" rel="noopener noreferrer">${ic('map','🗺')} ${he?'שדה → מלון ב-Google Maps (תחבורה ציבורית)':'Airport → hotel in Google Maps (transit)'}</a><a class="btn gold" href="https://www.google.com/maps/dir/?api=1&origin=Via+della+Vite+13+Roma&destination=Fiumicino+Airport+Rome&travelmode=transit" target="_blank" rel="noopener noreferrer">${ic('map','🗺')} ${he?'מלון → שדה ב-Google Maps (תחבורה ציבורית)':'Hotel → airport in Google Maps (transit)'}</a></div>`}
+function vRoute(){const T0=S.trip;if(!T0)return '';
+ const head=`<button class="back" data-act="routeBack">${ic('chevron-left','‹')}${t('cancel')}</button><h2 style="margin-top:4px">${t('routeT')}</h2>`;
+ if(N.state==='planning')return head+`<div class="empty"><div class="spin"></div></div>`;
+ if(!T0.route)return head+`<div class="note">${esc(T0.err?t('err_'+T0.err):'')}</div><div class="row"><button class="btn pri" data-act="retryPlan">${ic('refresh-cw','↻')} ${t('retry')}</button></div>`;
+ const r=T0.route,names=[T0.origin.label,...T0.stops.map(nm)];
+ const canLive=S.demo||userInBp();
+ const sug=suggest(r,T0.stops.map(s=>s.id)).slice(0,3);
+ return head+`<div class="kv"><span class="badge${r.via==='cached'?' w':''}">${r.via==='cached'?t('viaCached'):t('viaOnline')}</span><span>${esc(r.provider)}</span></div>
+ <div class="sum"><div><b data-cnt="${Math.round(r.total)}" data-k="d">${fmtD(r.total)}</b><small>${t('dist')}</small></div><div><b data-cnt="${Math.round(r.time)}" data-k="t">${fmtT(r.time)}</b><small>${t('time')}</small></div></div>
+ <div class="mline">${names.map((n,i)=>`<div class="stn${i===names.length-1?' end':''}"><div class="nm2" style="padding-inline-end:0">${esc(n)}</div>${i<r.legs.length?`<div class="lg">${ic('footprints','›')} ${fmtD(r.legs[i].dist)} · ${fmtT(r.legs[i].time)}</div>`:''}</div>`).join('')}</div>
+ ${canLive?'':`<div class="note">${t('previewOnly')}</div>`}
+ <div class="row"><button class="btn pri" data-act="startNav" ${canLive?'':'disabled'}>${ic('play','▶')} ${t('startNav')}</button></div>
+ ${sug.length?`<h3>${ic('sparkles','✦')} ${t('sugT')}</h3>${sug.map(s=>`<div class="it" style="border:0"><div class="im" style="cursor:default;padding-bottom:6px">${thumb(s.a)}<span class="tx2"><span class="nm" style="font-size:19px">${esc(nm(s.a))}</span><span class="sb">${s.off<60?t('sugOn'):t('sugNear',{m:Math.round(s.off)})}</span><span class="sb">${t('sugExtra',{n:s.extra})}</span></span></div></div>
+  <div class="row2"><button class="btn gold" data-act="addWp" data-id="${s.a.id}">${ic('plus','+')} ${t('add')}</button><button class="btn" data-act="sel" data-id="${s.a.id}">${t('view')}</button></div>`).join('')}`:''}
+ <h3>${t('steps')}</h3>${r.steps.map((s,i)=>`<button class="step" data-act="stepGo" data-i="${i}"><span class="ar">${arrow(s.dir)}</span><span><b>${esc(stepText(s))}</b><small>${fmtD(s.dist)}</small></span></button>`).join('')}`}
+
+/* ============================ actions ============================ */
+function setView(v,snap){S.view=v;if(['explore','plan','saved','settings'].includes(v))S.tab=v;if(snap)S.snap=snap;applySnap();render()}
+function selectAttr(id,fly=true){const a=byId(id);if(!a)return;S.sel=id;S.recents=[id,...S.recents.filter(x=>x!==id)].slice(0,8);store.set('recents',S.recents);
+ setView('detail','half');if(fly&&map)map.flyTo({center:[a.lon,a.lat],zoom:17,pitch:62,bearing:S.northUp?0:(map.getBearing()||20),padding:camPad(),duration:dur(1800),essential:false});
+ if(beacon)map.triggerRepaint()}
+function toggleFav(id){S.favs.has(id)?S.favs.delete(id):S.favs.add(id);store.set('favs',[...S.favs]);render()}
+function persistPlan(){store.set('pstops',S.plan.stops);store.set('pstart',S.plan.start)}
+const ACT={
+ enter(){enterApp()},
+ tab(el){setView(el.dataset.id,'half')},
+ cat(el){const c=el.dataset.id;if(c==='near'&&!userInBp()){locate(true);}S.cat=S.cat===c&&c!=='all'?'all':c;if(S.view!=='explore')S.view='explore',S.tab='explore';render()},
+ sel(el){selectAttr(el.dataset.id)},
+ fav(el){toggleFav(el.dataset.id)},
+ back(){S.sel=null;if(S.trip&&S.trip.route&&!N.active)setView('route','half');else setView(S.tab,'half')},
+ snap(){S.snap=S.snap==='peek'?'half':S.snap==='half'?'full':'peek';applySnap()},
+ addPlan(el){const id=el.dataset.id;if(!S.plan.stops.includes(id)){S.plan.stops.push(id);persistPlan();toast(t('added',{n:nm(byId(id))}))}render()},
+ up(el){const i=+el.dataset.i,s=S.plan.stops;[s[i-1],s[i]]=[s[i],s[i-1]];persistPlan();render()},
+ down(el){const i=+el.dataset.i,s=S.plan.stops;[s[i+1],s[i]]=[s[i],s[i+1]];persistPlan();render()},
+ rm(el){S.plan.stops.splice(+el.dataset.i,1);persistPlan();render()},
+ optimize(){const prev=[...S.plan.stops];const o=S.plan.start==='gps'?(userInBp()?[S.user.lon,S.user.lat]:null):(()=>{const a=byId(S.plan.start);return [a.lon,a.lat]})();
+  const rem=prev.map(byId);const out=[];let cur=o||[rem[0].lon,rem[0].lat];if(!o){out.push(rem.shift())&&(cur=[out[0].lon,out[0].lat])}
+  while(rem.length){let bi=0,bd=Infinity;rem.forEach((a,i)=>{const d=hav(cur,[a.lon,a.lat]);if(d<bd){bd=d;bi=i}});const n=rem.splice(bi,1)[0];out.push(n);cur=[n.lon,n.lat]}
+  S.plan.stops=out.map(a=>a.id);persistPlan();render();toast(t('optimized'),{label:t('undo'),fn:()=>{S.plan.stops=prev;persistPlan();render()}})},
+ saveIt(){const n=($('#pname').value||'').trim()||('Plan '+(S.itins.length+1));S.itins.push({name:n,start:S.plan.start,stops:[...S.plan.stops]});store.set('itins',S.itins);toast(t('saved')+': '+n)},
+ loadIt(el){const it=S.itins[+el.dataset.i];if(!it)return;S.plan.stops=it.stops.filter(byId);S.plan.start=it.start==='gps'||byId(it.start)?it.start:'gps';persistPlan();setView('plan','half')},
+ delIt(el){S.itins.splice(+el.dataset.i,1);store.set('itins',S.itins);render()},
+ navTo(el){planTrip([byId(el.dataset.id)])},
+ planGo(){planTrip(S.plan.stops.map(byId).filter(Boolean))},
+ retryPlan(){if(S.trip)planTrip(S.trip.stops)},
+ routeBack(){clearRoute();S.trip=null;setNav('idle');setView(S.sel?'detail':S.tab,'half')},
+ stepGo(el){const r=S.trip&&S.trip.route;if(!r||!map)return;const s=r.steps[+el.dataset.i];const c=r.coords[s.idx];map.flyTo({center:c,zoom:18,pitch:60,padding:camPad(),duration:dur(900)});if(!isDesk())setSnap('peek')},
+ addWp(el){addWaypoint(byId(el.dataset.id))},
+ startNav(){startNav()},
+ orbit(el){orbit(byId(el.dataset.id))},
+ lang(el){S.lang=el.dataset.id;store.set('lang',S.lang);applyLang()},
+ theme(el){S.theme=el.dataset.id;store.set('theme',S.theme);applyTheme();render()},
+ hotel(){selectAttr('hotel')},
+ hotelAir(){S.plan.start='hotel';S.plan.stops=['ap_termini'];persistPlan();ACT.planGo()},
+ air(){S.sel=null;setView('air','half')},
+ airBack(){setView('explore','half')},
+ themeFab(){S.theme=effTheme()==='dark'?'light':'dark';store.set('theme',S.theme);applyTheme();if(S.view==='set')render()},
+ qual(el){S.quality=el.dataset.id;store.set('q',S.quality);applyQuality();render()},
+ northUp(el){S.northUp=el.dataset.id==='1';store.set('north',S.northUp);if(S.northUp&&map)map.easeTo({bearing:0,duration:dur(500)});render()},
+ trackSet(el){if(el.dataset.id==='1')locate(false,true);else stopTrack();},
+ demo(el){S.demo=el.dataset.id==='1';store.set('demo',S.demo);render()},
+ simSpeed(el){S.simSpeed=+el.dataset.id;store.set('simSpeed',S.simSpeed);render()},
+ north(){if(map)map.easeTo({bearing:0,pitch:map.getPitch(),duration:dur(500)})},
+ tilt(){if(map)map.easeTo({pitch:map.getPitch()>30?0:62,duration:dur(600)})},
+ locate(){locate(true)},
+ credits(){showModal(`<h2>${t('cred')}</h2><p>${t('credTxt')}</p><p>${t('aboutTxt')}</p><div class="row"><button class="btn pri" data-act="closeModal">OK</button></div>`)},
+ closeModal(){closeModal()},
+ pickStart(el){const f=window.__pickStart;closeModal();if(f){window.__pickStart=null;f(el.dataset.id)}},
+ cancelStart(){const f=window.__pickStart;closeModal();if(f){window.__pickStart=null;f(null)}},
+ navRecenter(){N.follow=true;followCam(true);updateNavUI()},
+ navPause(){N.paused=!N.paused;if(N.paused)setNav('paused');else{setNav('navigating');N.follow=true}updateNavUI()},
+ navEnd(){endNav()},
+ navCont(){continueNav()},
+ sugAdd(){const a=N.sugA;N.sugA=null;$('#sug').hidden=true;if(a)addWaypoint(a)},
+ sugDismiss(){if(N.sugA)S.dismissed.add(N.sugA.id);N.sugA=null;$('#sug').hidden=true},
+ sugView(){const a=N.sugA;if(a){map&&map.flyTo({center:[a.lon,a.lat],zoom:17.5,pitch:60,duration:dur(900),padding:camPad()});toast(nm(a)+' · '+(S.lang==='he'?a.dHe:a.dEn))}},
+ retryRecalc(){recalc()},
+ deviate(){simDeviate()}
+};
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;const f=ACT[el.dataset.act];if(f)f(el,e)});
+document.addEventListener('change',e=>{const el=e.target.closest('[data-chg]');if(!el)return;if(el.dataset.chg==='pstart'){S.plan.start=el.value;persistPlan()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#modal').hidden){ACT.cancelStart()}else if(S.view==='detail')ACT.back()}});
+$('#q').addEventListener('input',e=>{S.q=e.target.value;if(S.view!=='explore'){S.view='explore';S.tab='explore'}render()});
+$('#qx').addEventListener('click',()=>{S.q='';$('#q').value='';render()});
+$('#q').addEventListener('keydown',e=>{if(e.key==='Enter'){const L=filtered();if(L.length)selectAttr(L[0].id);e.target.blur()}});
+addEventListener('resize',()=>{applySnap();if(N.active)setNavVars()});
+
+function applyLang(){const h=S.lang==='he';document.documentElement.lang=S.lang;document.documentElement.dir=h?'rtl':'ltr';
+ document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));document.querySelectorAll('[data-ph]').forEach(e=>e.placeholder=t(e.dataset.ph));
+ document.querySelectorAll('[data-al]').forEach(e=>e.setAttribute('aria-label',t(e.dataset.al)));
+ Object.values(markers).forEach(m=>{const a=byId(m.id);m.pin.setAttribute('aria-label',nm(a));m.el.querySelector('.pl').textContent=nm(a)});
+ render();if(N.active)updateNavUI();updateIntroStatus()}
+function applyQuality(){if(!map)return;const perf=S.quality==='perf';if(map.setPixelRatio)map.setPixelRatio(perf?1:Math.min(devicePixelRatio||1,2));map.setMaxPitch(0);map.triggerRepaint()}
+
+/* ============================ map ============================ */
+const STYLES=['https://tiles.openfreemap.org/styles/liberty','https://tiles.openfreemap.org/styles/positron'];
+const STYLE_URL=STYLES[0];let RAWSTYLE=null;
+const THEMES={light:{bld:['#F3CDA6','#EFB3A0','#F4DD9B','#E6A98B','#CBDDB1','#B7D2E8'],route:'#1A73E8',rcase:'#ffffff',done:'#9aa9ba',li:.55,bop:.96},
+ dark:{bld:['#6a5470','#7a5252','#4f6a88','#7a6842','#43736a','#5f5788'],route:'#8AB4F8',rcase:'#202124',done:'#6b7f96',li:.4,bop:.94}};
+const mqDark=matchMedia('(prefers-color-scheme: dark)');
+const effTheme=()=>S.theme==='auto'?(mqDark.matches?'dark':'light'):S.theme;
+function applyTheme(){const th=effTheme();document.documentElement.dataset.theme=th;
+ const m=document.querySelector('meta[name=theme-color]');if(m)m.content=th==='dark'?'#0D1620':'#F3F6F9';
+ const b=$('#bTheme');if(b){b.innerHTML=ic(th==='dark'?'sun':'moon',th==='dark'?'☀':'☾');hydrateIcons()}
+ if(map&&S.mapOK)swapStyle()}
+mqDark.addEventListener&&mqDark.addEventListener('change',()=>{if(S.theme==='auto')applyTheme()});
+async function getStyle(th){if(!RAWSTYLE){for(const u of STYLES){try{const r=await fetch(u);if(r.ok){RAWSTYLE=await r.json();break}}catch(e){}}}
+ if(!RAWSTYLE)throw new Error('style');const st=JSON.parse(JSON.stringify(RAWSTYLE));return th==='dark'?nightify(st):dayify(st)}
+let swapTok=0;
+async function swapStyle(){const th=effTheme();if(!map||th===mapTheme)return;const tok=++swapTok;let st;try{st=await getStyle(th)}catch(e){return}
+ if(tok!==swapTok)return;mapTheme=th;map.once('style.load',()=>{try{setupLayers();if(S.trip&&S.trip.route)setSrc('route',S.trip.route.coords);updateMeCone&&updateMeCone()}catch(e){console.error(e)}});
+ map.setStyle(st,{diff:false})}
+function dayify(st){for(const l of st.layers){const id=l.id,ty=l.type;l.paint=l.paint||{};const p=l.paint;
+  if(ty==='fill-extrusion'){l.layout=l.layout||{};l.layout.visibility='none'}
+  else if(ty==='fill'&&!/^building/.test(id)){if(/water/.test(id)){p['fill-color']='#9ccdf0';delete p['fill-pattern']}else if(/park|wood|grass|green|forest/.test(id)){p['fill-color']='#bfe0a6';delete p['fill-pattern']}}
+  else if(ty==='line'&&/^waterway|water/.test(id)&&!/boundary/.test(id))p['line-color']='#8fc3ea'}
+ return st}
+function nightify(st){for(const l of st.layers){const id=l.id,ty=l.type;l.paint=l.paint||{};const p=l.paint;
+  if(ty==='background')p['background-color']='#0f1722';
+  else if(ty==='fill-extrusion'){l.layout=l.layout||{};l.layout.visibility='none'}
+  else if(ty==='fill'){if(/^building/.test(id)){p['fill-color']='#1f3047';p['fill-opacity']=1}
+   else if(/water/.test(id))p['fill-color']='#123a63';else if(/park|wood|grass|green|forest|landcover/.test(id))p['fill-color']='#143d2d';else p['fill-color']='#111c2a';delete p['fill-pattern'];delete p['fill-outline-color']}
+  else if(ty==='line'){if(/water/.test(id))p['line-color']='#1d4570';else if(/boundary|admin/.test(id))p['line-color']='#3a4b63';else if(/casing/.test(id))p['line-color']='#0c141e';else if(/path|pedestrian|footway|steps/.test(id))p['line-color']='#5d86b4';else if(/rail|transit/.test(id))p['line-color']='#26354a';else p['line-color']='#3a5578'}
+  else if(ty==='symbol'){p['text-color']='#b4c4d8';p['text-halo-color']='#0d1520';p['text-halo-width']=1.2;p['icon-opacity']=.5}}
+ return st}
+function makeBeacons(){let camera,scene,renderer,groups={},t0=performance.now();
+ const mk=(col,op)=>new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,depthWrite:false});
+ return {id:'beacons3d',type:'custom',renderingMode:'3d',
+  onAdd(m,gl){camera=new THREE.Camera();scene=new THREE.Scene();
+   renderer=new THREE.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:true});renderer.autoClear=false;
+   A.forEach(a=>{const g=new THREE.Group();
+    const pil=new THREE.Mesh(new THREE.CylinderGeometry(4,7,1,16,1,true),mk(0xF1C777,.45));pil.name='pil';pil.position.y=.5;g.add(pil);
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(9,16,12),mk(0xFFE3A6,.9));orb.name='orb';g.add(orb);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(14,17,48),mk(0xF1C777,.6));ring.rotation.x=-Math.PI/2;ring.position.y=1;ring.name='ring';g.add(ring);
+    g.visible=false;scene.add(g);groups[a.id]=g})},
+  render(gl,arg){if(S.quality==='perf'||!S.mapOK)return;const mat=(arg&&arg.defaultProjectionData)?arg.defaultProjectionData.mainMatrix:arg;
+   const tt=(performance.now()-t0)/1000;const rotX=new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0),Math.PI/2);
+   const dests=new Set(S.trip?S.trip.stops.map(s=>s.id):[]);
+   for(const a of A){const g=groups[a.id];if(!g)continue;
+    const sel=S.sel===a.id,dst=dests.has(a.id),H=sel?210:dst?150:70,sc=sel?1.6:1;
+    const col=dst?0x5EE7C4:a.k?0x59A8FF:a.h?0xFF6FA8:0xF1C777;
+    g.children.forEach(c=>c.material.color.setHex(c.name==='orb'?(sel?0xffffff:dst?0xbffbe9:0xFFE3A6):col));
+    const pil=g.getObjectByName('pil'),orb=g.getObjectByName('orb'),ring=g.getObjectByName('ring');
+    pil.scale.set(sc,H,sc);pil.position.y=H/2;orb.position.y=H+8;orb.scale.setScalar(sc*(1+.12*Math.sin(tt*3)));
+    const k=1+((tt*.6+A.indexOf(a)*.13)%1)*1.6;ring.scale.set(k*sc,k*sc,1);ring.material.opacity=.7*(1-(k-1)/1.6);
+    const mc=maplibregl.MercatorCoordinate.fromLngLat([a.lon,a.lat],0),s=mc.meterInMercatorCoordinateUnits();
+    const l=new THREE.Matrix4().makeTranslation(mc.x,mc.y,mc.z).scale(new THREE.Vector3(s,-s,s)).multiply(rotX);
+    camera.projectionMatrix=new THREE.Matrix4().fromArray(mat).multiply(l);
+    g.visible=true;renderer.resetState?renderer.resetState():renderer.state.reset();renderer.render(scene,camera);g.visible=false}
+   map.triggerRepaint()}}}
+function initMap(){return new Promise(async res=>{
+ try{const c=document.createElement('canvas');if(!(c.getContext('webgl2')||c.getContext('webgl')))throw 0}catch(e){toast(t('noGL'));return res(false)}
+ if(!window.maplibregl){return res(false)}
+ mapTheme=effTheme();let style=STYLE_URL;try{style=await getStyle(mapTheme)}catch(e){}
+ try{map=new maplibregl.Map({container:'map',style,center:BP,zoom:13.4,pitch:0,bearing:0,maxPitch:0,maxZoom:19,dragRotate:false,touchPitch:false,attributionControl:false,pixelRatio:S.quality==='perf'?1:Math.min(devicePixelRatio||1,2)});}catch(e){return res(false)}
+ try{map.touchZoomRotate.disableRotation()}catch(e){}
+ map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'© OpenFreeMap · OpenMapTiles · Routing: FOSSGIS'}),'bottom-right');
+ let done=false;const fin=ok=>{if(!done){done=true;res(ok)}};
+ map.on('load',()=>{try{setupLayers();S.mapOK=true}catch(e){console.error('layers',e)}fin(true)});
+ map.on('error',e=>{if(!done&&e&&e.error&&/style|Failed to fetch/i.test(String(e.error.message||e.error)))fin(false)});
+ setTimeout(()=>fin(S.mapOK),9000);
+ map.on('zoom',()=>$('#map').classList.toggle('z-lbl',map.getZoom()>=15.6));
+ map.on('rotate',()=>{const c=$('#compass');if(c)c.style.transform='rotate('+(-map.getBearing())+'deg)';{const nb=$('#bNorth');if(nb)nb.style.display=Math.abs(map.getBearing())>1?'grid':'none'}updateMeCone()});
+ map.on('movestart',e=>{if(e.originalEvent){stopOrbit();stopSpin();if(N.active&&N.follow){N.follow=false;updateNavUI()}}});
+ buildPins()})}
+function setupLayers(){
+ const TH=THEMES[mapTheme]||THEMES.dark;const st=map.getStyle();const src=Object.keys(st.sources).find(k=>st.sources[k].type==='vector');
+ const firstSym=st.layers.find(l=>l.type==='symbol');
+ const cv=document.createElement('canvas');cv.width=cv.height=32;const x=cv.getContext('2d');x.fillStyle='#fff';x.strokeStyle='#0b1119';x.lineWidth=3;x.beginPath();x.moveTo(8,6);x.lineTo(24,16);x.lineTo(8,26);x.lineTo(13,16);x.closePath();x.stroke();x.fill();
+ map.addImage('arr',x.getImageData(0,0,32,32));
+ const empty={type:'FeatureCollection',features:[]};['route','route-done','acc'].forEach(i=>map.addSource(i,{type:'geojson',data:empty}));
+ map.addLayer({id:'acc',type:'fill',source:'acc',paint:{'fill-color':'#4aa3ff','fill-opacity':.14}});
+ map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':TH.rcase,'line-width':['interpolate',['linear'],['zoom'],10,6,18,15]}});
+ map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':TH.route,'line-width':['interpolate',['linear'],['zoom'],10,3.5,18,9]}});
+ map.addLayer({id:'route-done',type:'line',source:'route-done',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':TH.done,'line-width':['interpolate',['linear'],['zoom'],10,3.5,18,9],'line-opacity':.9}});
+ map.addLayer({id:'route-arrows',type:'symbol',source:'route',layout:{'symbol-placement':'line','symbol-spacing':70,'icon-image':'arr','icon-size':['interpolate',['linear'],['zoom'],12,.45,18,.8],'icon-allow-overlap':true,'icon-ignore-placement':true}});
+ beacon=null;
+ applyQuality()}
+function buildPins(){A.forEach((a,i)=>{const w=document.createElement('div');w.className='pw';
+  w.innerHTML=`<button class="pin${a.k?' k':a.h?' h':a.t?' t':''}" style="--d:${i*55}ms" aria-label="${esc(nm(a))}"><svg viewBox="0 0 30 40"><path fill="currentColor" d="M15 0C6.7 0 0 6.5 0 14.6 0 25 15 38 15 38s15-13 15-23.4C30 6.5 23.3 0 15 0z"/><circle cx="15" cy="14.5" r="5.2" fill="#fff"/></svg></button><div class="pl">${esc(nm(a))}</div>`;
+  const pin=w.querySelector('.pin');pin.addEventListener('click',ev=>{ev.stopPropagation();selectAttr(a.id)});
+  const m=new maplibregl.Marker({element:w,anchor:'bottom'}).setLngLat([a.lon,a.lat]).addTo(map);markers[a.id]={id:a.id,el:w,pin,m}})}
+function refreshPins(){const dst=new Set(S.trip?S.trip.stops.map(s=>s.id):[]);for(const id in markers){const e=markers[id].pin;e.classList.toggle('sel',S.sel===id);e.classList.toggle('dest',dst.has(id))}if(beacon&&map)map.triggerRepaint()}
+function setSrc(id,coords){if(!map||!S.mapOK)return;const s=map.getSource(id);if(s)s.setData(coords&&coords.length>1?{type:'Feature',geometry:{type:'LineString',coordinates:coords}}:{type:'FeatureCollection',features:[]})}
+let drawRaf=0,drawCtl=null,drawTok=0;
+function drawRoute(coords,animate){const tok=++drawTok;if(drawCtl){try{drawCtl.kill()}catch(e){}drawCtl=null}
+ if(!animate||RM||coords.length<4||!window.gsap){setSrc('route',coords);return}
+ const o={p:0};drawCtl=gsap.to(o,{p:1,duration:1.3,ease:'power2.inOut',onUpdate:()=>{if(tok===drawTok)setSrc('route',coords.slice(0,Math.max(2,Math.ceil(coords.length*o.p))))}});
+ setTimeout(()=>{if(tok===drawTok)setSrc('route',coords)},1600)}
+function clearRoute(){drawTok++;try{drawCtl&&drawCtl.kill()}catch(e){}setSrc('route',null);setSrc('route-done',null);if(mkA){mkA.remove();mkA=null}if(mkB){mkB.remove();mkB=null}}
+function endMarkers(origin,dest){if(!map)return;if(mkA)mkA.remove();if(mkB)mkB.remove();
+ const a=document.createElement('div');a.className='mk';a.textContent='A';mkA=new maplibregl.Marker({element:a}).setLngLat([origin.lon,origin.lat]).addTo(map);
+ const b=document.createElement('div');b.className='mk';b.style.background='var(--gold)';b.textContent='B';mkB=new maplibregl.Marker({element:b}).setLngLat([dest.lon,dest.lat]).addTo(map)}
+function fitRoute(coords){if(!map||!coords.length)return;const b=new maplibregl.LngLatBounds(coords[0],coords[0]);coords.forEach(c=>b.extend(c));map.fitBounds(b,{padding:camPad(),pitch:50,bearing:S.northUp?0:map.getBearing(),duration:dur(1400),maxZoom:17})}
+/* orbit + intro spin */
+let orbitRaf=0,spinRaf=0;
+function stopOrbit(){S.orbit=false;cancelAnimationFrame(orbitRaf)}
+function stopSpin(){cancelAnimationFrame(spinRaf)}
+function orbit(a){if(!map)return;stopOrbit();if(isDesk()===false)setSnap('peek');S.orbit=true;
+ map.flyTo({center:[a.lon,a.lat],zoom:17.3,pitch:68,duration:dur(1600),padding:camPad()});if(RM)return;
+ map.once('moveend',()=>{if(!S.orbit)return;let last=performance.now();const step=n=>{if(!S.orbit)return;map.setBearing(map.getBearing()+(n-last)*.02);last=n;orbitRaf=requestAnimationFrame(step)};orbitRaf=requestAnimationFrame(step)})}
+function spin(){return;let last=performance.now();const step=n=>{map.setBearing(map.getBearing()+(n-last)*.004);last=n;spinRaf=requestAnimationFrame(step)};spinRaf=requestAnimationFrame(step)}
+
+/* ============================ location ============================ */
+function updateMe(){if(!map||!S.user)return;if(!userInBp()){if(meMarker){meMarker.remove();meMarker=null}return}
+ if(!meMarker){const el=document.createElement('div');el.className='me';el.innerHTML='<div class="cone"></div>';meMarker=new maplibregl.Marker({element:el}).setLngLat([S.user.lon,S.user.lat]).addTo(map)}
+ meMarker.setLngLat([S.user.lon,S.user.lat]);const el=meMarker.getElement();el.classList.toggle('sim',S.user.src==='sim');el.classList.toggle('h',S.user.hdg!=null);updateMeCone();
+ const s=map.getSource('acc');if(s)s.setData({type:'Feature',geometry:{type:'Polygon',coordinates:[circlePoly([S.user.lon,S.user.lat],Math.min(S.user.acc||20,150))]}})}
+function updateMeCone(){if(!meMarker||!S.user||S.user.hdg==null)return;const c=meMarker.getElement().querySelector('.cone');if(c)c.style.transform='rotate('+(S.user.hdg-map.getBearing())+'deg)'}
+function onPos(p){if(!isFinite(p.lat)||!isFinite(p.lon))return;S.lastFix=Date.now();
+ const prev=S.user;let lat=p.lat,lon=p.lon;
+ if(prev&&prev.src===p.src){const al=p.acc<=15?1:p.acc<=40?.6:.35;lat=prev.lat+(p.lat-prev.lat)*al;lon=prev.lon+(p.lon-prev.lon)*al}
+ let hdg=prev?prev.hdg:null;
+ if(isFinite(p.hdg)&&p.spd>.6)hdg=p.hdg;else if(prev&&hav([prev.lon,prev.lat],[lon,lat])>5)hdg=brg([prev.lon,prev.lat],[lon,lat]);
+ S.user={lat,lon,acc:p.acc,hdg,spd:p.spd,ts:p.ts||Date.now(),src:p.src||'gps'};
+ updateMe();if(N.active&&!N.paused)navTick();else if(S.view==='explore'&&S.cat==='near')render()}
+function geoOpts(){return {enableHighAccuracy:true,maximumAge:2000,timeout:15000}}
+function startWatch(){if(S.watchId!=null||!navigator.geolocation)return;
+ S.watchId=navigator.geolocation.watchPosition(pos=>{S.tracking=true;S.geoDenied=false;if(S.demo&&N.active)return;onPos({lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy,hdg:pos.coords.heading,spd:pos.coords.speed,ts:pos.timestamp,src:'gps'})},
+  err=>{if(err.code===1){S.geoDenied=true;stopTrack(true);if(N.active)setNav('denied');toast(t('s_denied'))}},geoOpts())}
+function stopTrack(silent){if(S.watchId!=null){navigator.geolocation.clearWatch(S.watchId);S.watchId=null}S.tracking=false;if(!silent)toast(t('locOff'));if(!(N.active))S.user=null,meMarker&&(meMarker.remove(),meMarker=null);if(S.view==='settings')render()}
+function locateOnce(){return new Promise((res,rej)=>{if(!navigator.geolocation||S.geoDenied)return rej(E('gps'));
+ navigator.geolocation.getCurrentPosition(pos=>{S.tracking=true;onPos({lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy,hdg:pos.coords.heading,spd:pos.coords.speed,ts:pos.timestamp,src:'gps'});startWatch();res()},
+  err=>{if(err.code===1)S.geoDenied=true;rej(E('gps'))},geoOpts())})}
+async function locate(fromBtn,settings){try{await locateOnce();if(userInBp()){if(fromBtn&&map)map.flyTo({center:[S.user.lon,S.user.lat],zoom:16.5,pitch:55,padding:camPad(),duration:dur(1200)});toast(t('gotLoc'))}else toast(t('farAway'))}
+ catch(e){toast(S.geoDenied?t('s_denied'):t('err_gps'))}if(S.view==='settings'||S.view==='explore')render()}
+
+/* ============================ trip planning ============================ */
+function chooseStart(){return new Promise(res=>{window.__pickStart=res;showModal(`<h2>${t('chooseStart')}</h2><p>${t('chooseNote')}</p>${A.map(a=>`<div class="it"><button class="im" data-act="pickStart" data-id="${a.id}">${thumb(a)}<span class="tx2"><span class="nm" style="font-size:18px">${esc(nm(a))}</span></span></button></div>`).join('')}<div class="row"><button class="btn" data-act="cancelStart">${t('cancel')}</button></div>`)})}
+async function resolveOrigin(){
+ if(S.plan.start==='gps'){if(!userInBp()&&!S.geoDenied){toast(t('trackNote'));try{await locateOnce()}catch(e){}}
+  if(userInBp())return {lat:S.user.lat,lon:S.user.lon,label:t('myLoc'),gps:true};
+  const id=await chooseStart();if(!id)return null;S.plan.start=id;persistPlan()}
+ const a=byId(S.plan.start)||A[0];return {lat:a.lat,lon:a.lon,label:nm(a),id:a.id}}
+async function planTrip(stops){if(!stops.length)return;
+ const origin=await resolveOrigin();if(!origin)return;
+ if(origin.id&&stops.length>1&&stops[0].id===origin.id)stops=stops.slice(1);
+ if(stops.length===1&&origin.id===stops[0].id){toast(t('err_same'));return}
+ S.trip={origin,stops:[...stops],route:null};setNav('planning');setView('route','half');
+ await recomputeTrip(true)}
+async function recomputeTrip(fit){const T0=S.trip;if(!T0)return;
+ try{const r=await routeFn([T0.origin,...T0.stops]);if(S.trip!==T0)return;T0.route=r;T0.err=null;
+  drawRoute(r.coords,true);endMarkers(T0.origin,T0.stops[T0.stops.length-1]);if(fit)fitRoute(r.coords);
+  setNav('ready');N.lastSug=0;S.view==='route'&&setTimeout(()=>enter('#view > *'),0)}
+ catch(e){if(e.code==='superseded')return;T0.route=null;T0.err=e.code||'net';setNav('error')}
+ render()}
+function suggest(route,excl){const skip=new Set([...excl,...S.dismissed]);if(S.trip&&S.trip.origin.id)skip.add(S.trip.origin.id);
+ const out=[];for(const a of A){if(skip.has(a.id)||a.t||a.h)continue;const p=project(route,[a.lon,a.lat]);if(p.dist>CFG.discoverRadius)continue;
+  const detour=p.dist*2*1.25;const fav=[...S.favs].map(byId).filter(Boolean);const catBoost=fav.some(f=>f.cats.some(c=>a.cats.includes(c)))?10:0;
+  out.push({a,off:p.dist,along:p.along,detour,extra:Math.max(1,Math.round(detour/CFG.walkSpeed/60)),score:100-detour/5+(S.favs.has(a.id)?15:0)+catBoost})}
+ return out.sort((x,y)=>y.score-x.score)}
+async function addWaypoint(a){const T0=S.trip;if(!T0||!a)return;const prev=[...T0.stops];
+ let pos;
+ if(N.active)pos=N.li;else{const r=T0.route;const p=project(r,[a.lon,a.lat]);pos=r.legs.findIndex(l=>p.idx<=l.endIdx);if(pos<0)pos=T0.stops.length-1}
+ T0.stops.splice(pos,0,a);S.dismissed.add(a.id);
+ const undo={label:t('undo'),fn:async()=>{T0.stops=prev;if(N.active){await recalc(true)}else await recomputeTrip(false);toast(t('undone'))}};
+ if(N.active){await recalc(true)}else await recomputeTrip(false);
+ toast(t('added',{n:nm(a)}),undo);refreshPins()}
+
+/* ============================ navigation ============================ */
+const ALLOWED={idle:['locating','planning','ready'],locating:['planning','idle','denied'],planning:['ready','error','idle'],ready:['navigating','idle','planning','error'],navigating:['poorGps','offRoute','arrived','paused','idle','denied'],poorGps:['navigating','offRoute','arrived','idle','denied'],offRoute:['recalculating','navigating','idle','arrived'],recalculating:['navigating','offRoute','idle'],paused:['navigating','idle'],arrived:['navigating','idle','planning','ready'],error:['idle','planning','ready'],denied:['idle','locating','navigating']};
+function setNav(s){if(N.state===s)return;if(!(ALLOWED[N.state]||[]).includes(s))console.warn('nav transition',N.state,'->',s);N.state=s;document.body.dataset.nav=s;renderBanner()}
+function renderBanner(){const b=[];const st=N.state;
+ if(N.active&&S.demo)b.push(`<div class="demo"><span>${ic('flask-conical','🧪')} ${t('demoBanner')}</span><button data-act="deviate">${t('deviate')}</button></div>`);
+ if(!navigator.onLine)b.push(`<div><span>${ic('wifi-off','📡')} ${t('offline')}</span></div>`);
+ if(st==='poorGps')b.push(`<div><span>${t('s_poorGps')}</span></div>`);
+ if(st==='offRoute')b.push(`<div class="err"><span>${t('s_offRoute')}</span><button data-act="retryRecalc">${t('retry')}</button></div>`);
+ if(st==='recalculating')b.push(`<div><span>${t('s_recalc')}</span></div>`);
+ if(st==='denied')b.push(`<div class="err"><span>${t('s_denied')}</span></div>`);
+ if(st==='paused')b.push(`<div><span>${t('s_paused')}</span></div>`);
+ if(st==='error'&&N.active)b.push(`<div class="err"><span>${esc(t('err_'+(N.err||'net')))}</span><button data-act="retryRecalc">${t('retry')}</button></div>`);
+ const bh=b.join('');if(bh!==N.bh){N.bh=bh;$('#banner').innerHTML=bh;hydrateIcons();mo('#banner > div',{opacity:[0,1],transform:['translateY(-10px)','translateY(0px)']},{duration:.35})}$('#banner').style.setProperty('--bt',N.active?'var(--hudh,110px)':'calc(88px + var(--safeT))')}
+addEventListener('online',renderBanner);addEventListener('offline',renderBanner);
+function setNavVars(){const nb=$('#navbar'),h=$('#hud');document.documentElement.style.setProperty('--nbh',(nb.offsetHeight||150)+'px');document.documentElement.style.setProperty('--hudh',(h.offsetHeight||110)+'px')}
+async function startNav(){const T0=S.trip;if(!T0||!T0.route)return;
+ let from;if(S.demo)from={lat:T0.origin.lat,lon:T0.origin.lon};
+ else{if(!userInBp()){try{await locateOnce()}catch(e){}}if(!userInBp()){toast(t('notBp'));return}from={lat:S.user.lat,lon:S.user.lon}}
+ N.li=0;N.arrivedFlag=false;N.paused=false;N.follow=true;N.offCnt=0;N.last=null;N.lastSug=Date.now();
+ try{const r=await routeFn([from,T0.stops[0]]);N.route=r}catch(e){if(e.code==='superseded')return;N.err=e.code;toast(t('err_'+(e.code||'net')));return}
+ N.active=true;document.body.classList.add('nav');applySnap();$('#hud').hidden=false;$('#navbar').hidden=false;mo('#hud',{opacity:[0,1],transform:['translateY(-30px)','translateY(0px)']},{duration:.6});mo('#navbar',{opacity:[0,1],transform:['translateY(40px)','translateY(0px)']},{duration:.6});setNav('navigating');
+ drawRoute(N.route.coords,false);setSrc('route-done',null);endMarkers(from,T0.stops[N.li]);refreshPins();
+ try{if(navigator.wakeLock)N.wake=await navigator.wakeLock.request('screen')}catch(e){}
+ if(S.demo)simStart(from);else startWatch();
+ updateNavUI();setNavVars();if(S.user&&!S.demo)navTick();followCam(true)}
+function followCam(force){if(!map||!N.active||(!N.follow&&!force)||!S.user)return;
+ const o={center:[S.user.lon,S.user.lat],zoom:17.6,pitch:S.quality==='perf'?45:62,padding:camPad(),duration:dur(900),essential:true};
+ if(!S.northUp&&S.user.hdg!=null)o.bearing=S.user.hdg;else if(S.northUp)o.bearing=0;map.easeTo(o)}
+function curStep(r,idx){let k=0;for(let i=0;i<r.steps.length;i++){if(r.steps[i].idx<=idx)k=i;else break}return k}
+function navTick(){const r=N.route;if(!r||!S.user)return;const p=[S.user.lon,S.user.lat];const pr=project(r,p);N.pr=pr;
+ const rem=Math.max(0,r.total-pr.along);N.rem=rem;
+ setSrc('route-done',r.coords.slice(0,pr.idx+1).concat([pointAt(r,pr.along).pt]));
+ const cs=curStep(r,pr.idx);let nx=cs+1;while(nx<r.steps.length&&r.steps[nx].idx<=pr.idx)nx++;N.cs=cs;N.nxt=nx<r.steps.length?nx:r.steps.length-1;
+ N.dNext=Math.max(0,r.cum[Math.min(r.steps[N.nxt].idx,r.cum.length-1)]-pr.along);
+ const dest=r.coords[r.coords.length-1];const toDest=hav(p,dest);
+ if(!N.arrivedFlag&&toDest<=CFG.arrive&&S.user.acc<=60&&!['offRoute','recalculating'].includes(N.state)||(!N.arrivedFlag&&rem<12)){N.arrivedFlag=true;onArrive();return}
+ if(N.state==='navigating'||N.state==='poorGps'){if(S.user.acc>50&&N.state==='navigating')setNav('poorGps');else if(S.user.acc<=50&&N.state==='poorGps')setNav('navigating')}
+ const thr=Math.max(CFG.offRoute,Math.min(S.user.acc*1.2,80));
+ if(['navigating','poorGps'].includes(N.state)){if(pr.dist>thr&&S.user.acc<=80){N.offCnt++;if(N.offCnt>=CFG.offSamples){setNav('offRoute');recalc()}}else N.offCnt=0}
+ else if(N.state==='offRoute'&&!N.busy&&Date.now()-N.lastTry>15000)recalc();
+ followCam();updateNavUI();maybeSuggest()}
+async function recalc(keepStop){if(N.busy||!N.active||!S.user)return;N.busy=true;N.lastTry=Date.now();
+ if(N.state==='offRoute')setNav('recalculating');
+ try{const stop=S.trip.stops[N.li];const r=await routeFn([{lat:S.user.lat,lon:S.user.lon},stop]);N.route=r;N.offCnt=0;N.arrivedFlag=false;
+  drawRoute(r.coords,false);setSrc('route-done',null);endMarkers({lat:S.user.lat,lon:S.user.lon},stop);if(S.demo)simReanchor();
+  if(N.state!=='navigating')setNav('navigating');toast(t('rerouted'));refreshPins();updateNavUI()}
+ catch(e){if(e.code!=='superseded'){N.err=e.code;if(N.state==='recalculating')setNav('offRoute');else if(keepStop)toast(t('err_'+(e.code||'net')));renderBanner()}}
+ finally{N.busy=false}}
+function onArrive(){const T0=S.trip,a=T0.stops[N.li];S.dismissed.add(a.id);setNav('arrived');updateNavUI();followCam(true)}
+async function continueNav(){const T0=S.trip;if(!T0)return;if(N.li>=T0.stops.length-1){endNav();return}
+ N.li++;N.arrivedFlag=false;N.offCnt=0;try{const from=S.user?{lat:S.user.lat,lon:S.user.lon}:T0.stops[N.li-1];const r=await routeFn([from,T0.stops[N.li]]);N.route=r;drawRoute(r.coords,false);setSrc('route-done',null);endMarkers(from,T0.stops[N.li]);if(S.demo)simReanchor();setNav('navigating');updateNavUI();followCam(true)}
+ catch(e){N.li--;N.arrivedFlag=true;toast(t('err_'+(e.code||'net')))}}
+function endNav(){simStop();N.active=false;N.route=null;document.body.classList.remove('nav');$('#hud').hidden=true;$('#navbar').hidden=true;$('#sug').hidden=true;
+ try{N.wake&&N.wake.release()}catch(e){}N.wake=null;setNav('idle');clearRoute();S.trip=null;if(S.demo){S.user=null;if(meMarker){meMarker.remove();meMarker=null}}
+ renderBanner();S.view='explore';S.tab='explore';S.snap='half';applySnap();render();if(map)map.easeTo({pitch:55,duration:dur(900),padding:camPad()})}
+function updateNavUI(){if(!N.active||!N.route)return;const r=N.route,T0=S.trip;const st=r.steps[Math.min(N.nxt??0,r.steps.length-1)]||r.steps[0];
+ const arrived=N.state==='arrived';const show=arrived?{dir:'arrive',name:''}:st;
+ const dN=N.dNext??0;const hk=(arrived?'A':N.nxt)+'|'+N.li+'|'+r.coords.length;
+ $('#hud').innerHTML=`<div class="big" aria-hidden="true">${arrow(show.dir)}</div><div class="tt"><div class="d">${arrived?'✓':fmtD(dN)}</div><div class="tx">${esc(arrived?t('arrivedT',{n:nm(T0.stops[N.li])}):stepText(st))}</div>${!arrived&&N.nxt<r.steps.length-1?`<div class="nx">${esc(stepText(r.steps[N.nxt+1]))}</div>`:''}</div>`;
+ if(N.hudKey!==hk){N.hudKey=hk;mo('#hud .big',{transform:['scale(.7)','scale(1)'],opacity:[.3,1]},{duration:.6,ease:[.2,1.3,.3,1]});mo('#hud .tt',{opacity:[0,1],transform:['translateY(8px)','translateY(0px)']},{duration:.4})}
+ const rem=N.rem??r.total,eta=new Date(Date.now()+(r.time*(rem/(r.total||1)))*1000),prog=r.total?Math.min(100,Math.max(0,100*(1-rem/r.total))):0;
+ const acc=S.user?S.user.acc:999,q=acc<=15?['ok','gpsGood']:acc<=40?['mid','gpsFair']:['bad','gpsPoor'];
+ let body;
+ if(arrived){const more=N.li<T0.stops.length-1;body=`<div class="prog"><i style="width:100%"></i></div><div class="nrow"><b style="font-size:26px">${esc(t('arrivedT',{n:nm(T0.stops[N.li])}))}</b></div><div class="nbtn" style="margin-top:14px">${more?`<button class="btn pri" data-act="navCont">${ic('arrow-right','→')} ${t('contTo',{n:esc(nm(T0.stops[N.li+1]))})}</button>`:''}<button class="btn ${more?'':'pri'}" data-act="navEnd">${ic('flag','⚑')} ${t('finish')}</button></div>`}
+ else body=`<div class="prog"><i style="width:${prog}%"></i></div>
+ <div class="nrow"><div><b>${fmtD(rem)}</b><small>${t('nRemain')} · ${esc(nm(T0.stops[N.li]))}</small></div><div class="r"><b>${fmtT(r.time*(rem/(r.total||1)))}</b><small>${t('nEta')} ${eta.toLocaleTimeString(S.lang==='he'?'he-IL':'en-GB',{hour:'2-digit',minute:'2-digit'})}</small></div></div>
+ <div class="pills"><span class="${q[0]}">${t(q[1])}${S.user&&S.user.src==='sim'?' · SIM':''}</span><span>${navigator.onLine?t('online'):t('offline')}</span><span>${r.via==='cached'?t('viaCached'):esc(r.provider.split(' ')[0])}</span></div>
+ <div class="nbtn">${N.follow?'':`<button class="btn" data-act="navRecenter">${ic('locate-fixed','⌖')} ${t('nRecenter')}</button>`}<button class="btn" data-act="navPause">${N.paused?ic('play','▶')+' '+t('nResume'):ic('pause','❚❚')+' '+t('nPause')}</button><button class="btn danger" data-act="navEnd">${ic('square','■')} ${t('nEnd')}</button></div>`;
+ $('#navbar').innerHTML=body;hydrateIcons();setNavVars()}
+function maybeSuggest(){if(N.state!=='navigating'||!N.route||N.sugA||Date.now()-N.lastSug<CFG.discoverGapMs||(N.dNext||0)<80)return;
+ const ex=S.trip.stops.map(s=>s.id);const c=suggest(N.route,ex).filter(s=>project(N.route,[s.a.lon,s.a.lat]).along>(N.pr?N.pr.along:0))[0];if(!c)return;
+ N.lastSug=Date.now();N.sugA=c.a;const el=$('#sug');
+ el.innerHTML=`<div class="it" style="border:0"><div class="im" style="padding:0 0 10px">${thumb(c.a)}<span class="tx2"><span class="nm" style="font-size:19px">${esc(nm(c.a))}</span><span class="sb">${c.off<60?t('sugOn'):t('sugNear',{m:Math.round(c.off)})}</span><span class="sb">${t('sugExtra',{n:c.extra})}</span></span></div></div>
+ <div class="row2" style="margin:0"><button class="btn gold" data-act="sugAdd">${ic('plus','+')} ${t('add')}</button><button class="btn" data-act="sugView">${t('view')}</button><button class="btn" data-act="sugDismiss">${t('dismiss')}</button></div>`;hydrateIcons();el.hidden=false;mo(el,{opacity:[0,1],transform:['translateY(30px)','translateY(0px)']},{duration:.5})}
+/* stale GPS watchdog + resume */
+setInterval(()=>{if(N.active&&!S.demo&&!N.paused&&['navigating'].includes(N.state)&&Date.now()-S.lastFix>12000){setNav('poorGps')}},4000);
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&N.active){try{if(navigator.wakeLock&&!N.wake)N.wake=await navigator.wakeLock.request('screen')}catch(e){}
+ if(!S.demo)try{await locateOnce()}catch(e){}updateNavUI()}});
+/* ============================ demo walker (always labeled) ============================ */
+let sim=null;
+function simStart(from){simStop();const r=N.route;sim={along:0,pos:r.coords[0],dev:false,timer:setInterval(simStep,1000)};simStep()}
+function simStop(){if(sim){clearInterval(sim.timer);sim=null}}
+function simReanchor(){if(!sim||!N.route)return;sim.along=0;sim.dev=false;sim.pos=N.route.coords[0]}
+function simStep(){if(!sim||!N.route||N.paused)return;
+ if(!sim.dev&&!['offRoute','recalculating','arrived'].includes(N.state)){sim.along+=1.35*S.simSpeed;const q=pointAt(N.route,sim.along);sim.pos=q.pt;sim.hdg=q.hdg}
+ onPos({lat:sim.pos[1],lon:sim.pos[0],acc:8,hdg:sim.hdg,spd:1.4,ts:Date.now(),src:'sim'})}
+function simDeviate(){if(!sim)return;sim.pos=offsetPt(sim.pos,90,(sim.hdg||0)+90);sim.dev=true;simStep()}
+/* ============================ intro / boot ============================ */
+function updateIntroStatus(){const st=$('#ldst');if(!st)return;st.textContent=S.introState==='ready'?t('ld1',{n:A.length}):S.introState==='fail'?t('ldFail'):t('ld0')}
+function setProg(p){const f=$('#ldbar');if(!f)return;f.style.width=p+'%';const b=document.querySelectorAll('#intro .track b');if(b[0])b[0].classList.toggle('on',p>=6);if(b[1])b[1].classList.toggle('on',p>=50);if(b[2])b[2].classList.toggle('on',p>=100)}
+function enterApp(){if(S.entered)return;S.entered=true;Object.values(markers).forEach(m=>m.pin.classList.add('in'));
+ mo('#top',{opacity:[0,1],transform:['translateY(-30px)','translateY(0px)']},{duration:.6});
+ mo('#chips .chip',{opacity:[0,1],transform:['translateX(14px)','translateX(0px)']},{delay:stag(.04,{startDelay:.2}),duration:.5});
+ mo('#sheet',{opacity:[0,1],transform:['translateY(60px)','translateY(0px)']},{duration:.7,delay:.1});
+ mo('#fabs .fab',{opacity:[0,1],transform:['scale(.5)','scale(1)']},{delay:stag(.06,{startDelay:.4}),duration:.5,ease:[.2,1.3,.3,1]});
+ render();setTimeout(prefetchWiki,1200)}
+(async function boot(){
+ S.entered=false;applyTheme();applyLang();applySnap();render();S.entered=undefined;
+ const ok=await initMap();
+ if(ok&&S.mapOK)refineGeo();
+ enterApp();
+})();
+</script>
+</body>
+</html>
+
+</body></html>
